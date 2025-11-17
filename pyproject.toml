@@ -1,0 +1,11 @@
+[project]
+name = "gcp-mcp"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+    "fastmcp>=2.13.0.2",
+    "google-cloud-compute>=1.40.0",
+    "starlette>=0.50.0",
+]
