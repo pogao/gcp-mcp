@@ -43,19 +43,16 @@ def _list_all_instances_in_project_logic(project_id: str, zone: str):
 @mcp.tool()
 def describe_gcp_instance(instance_name: str, project_id: str, zone: str):
     """
-    Use this to get details about a specific Google Compute Engine instance.
-    Find out the name of the disk, Operating System, VPC network, service
-    account, CPU platform, shielded instance configuraiton, labels, and other
-    parameters. The Google Compute instance metadata is returned in JSON
-    format.
+    Fetches detailed metadata about a single Google Compute Engine (GCE) VM instance.
+    Use this tool to find comprehensive information like network interfaces (IP addresses), disk details, machine type, status, labels, and service accounts associated with a specific instance.
 
     Args:
-    * instance_name: the name of the Google Compute Instance from which you
-    want the details about. Must be a string.
-    * project_id: the project ID of the project where the instance exists.
-    Must be a string.
-    * zone: the zone on which the Google Compute Instance was created.
-    Must be a string.
+        instance_name: The name of the GCE instance to describe.
+        project_id: The unique identifier for the Google Cloud project where the instance resides.
+        zone: The zone where the instance is located, e.g., 'us-central1-a'.
+
+    Returns:
+        A single dictionary containing the full metadata of the specified VM instance.
     """
     return describe_gcp_instance_logic(
         instance_name=instance_name, project_id=project_id, zone=zone
@@ -70,6 +67,10 @@ def describe_gcp_instance_logic(instance_name: str, project_id: str, zone: str):
         )
 
         instance_details = client.get(request=request)
+        instance_details_json = compute_v1.Instance.to_json(instance_details)
+
+        return json.loads(instance_details_json)
+etails = client.get(request=request)
         instance_details_json = compute_v1.Instance.to_json(instance_details)
 
         return json.loads(instance_details_json)
