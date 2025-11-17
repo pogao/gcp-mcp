@@ -7,12 +7,14 @@ from gcp.utils import handle_gcp_exceptions
 @mcp.tool()
 def list_firewall_rules(project_id: str):
     """
-    Lists all firewall rules, for all VPC in project_id. The result
-    is returned in JSON.
+    Retrieves a comprehensive list of all firewall rules within a specified Google Cloud project.
+    Use this tool for broad queries about firewall configurations or when you need to see all rules at once.
 
     Args:
-    * project_id: the project ID of the project you want to list the
-    firewall rules. It needs to be a string.
+        project_id: The unique identifier for the Google Cloud project.
+
+    Returns:
+        A list of dictionaries, where each dictionary represents a complete firewall rule.
     """
     return list_firewall_rules_logic(project_id)
 
