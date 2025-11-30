@@ -1,3 +1,4 @@
+import json
 from app import mcp
 from google.cloud import compute_v1
 from gcp.utils import handle_gcp_exceptions
@@ -22,8 +23,7 @@ def list_gcp_instances(project_id: str, zone: str) -> list:
 def list_all_instances_in_project_logic(project_id: str, zone: str) -> list:
     results = []
     with compute_v1.InstancesClient() as instance_client:
-        request = compute_v1.ListInstancesRequest(
-            project=project_id, zone=zone)
+        request = compute_v1.ListInstancesRequest(project=project_id, zone=zone)
 
         instance_list = instance_client.list(request=request)
 
@@ -70,17 +70,6 @@ def describe_gcp_instance_logic(instance_name: str, project_id: str, zone: str) 
         )
 
         instance_details = client.get(request=request)
-        instance_details_dict = {
-            "name": instance_details.name,
-            "status": instance_details.status,
-            "machine_type": instance_details.machine_type.split("/")[-1],
-            "can_ip_forward": instance_details.can_ip_forward,
-            "cpu_platform": instance_details.cpu_platform,
-            "deletion_protection": instance_details.deletion_protection,
-            "creation_timestamp": instance_details.creation_timestamp,
-            "description": instance_details.description,
-            "self_link": instance_details.self_link,
-            "zone": instance_details.zone,
-        }
+        instance_details_json = compute_v1.Instance.to_json(instance_details)
 
-        return instance_details_dict
+        return json.loads(instance_details_json)
