@@ -1,3 +1,7 @@
+from gcp.storage import buckets
+from gcp.compute import firewalls
+from gcp.compute import instances
+
 from fastmcp import FastMCP
 from logging_config import setup_logging
 
@@ -13,6 +17,3 @@ mcp = FastMCP(
         organization and gather information about it.
     """,
 )
-
-from gcp.compute import instances
-from gcp.compute import firewalls
