@@ -53,9 +53,7 @@ The server currently provides the following tools to an LLM:
 2.  **Set up the virtual environment and install dependencies:**
 
     ```bash
-    uv venv
-    source .venv/bin/activate
-    uv pip install -r requirements.txt
+    uv sync
     ```
 
 3.  **Authenticate with GCP:**
@@ -66,7 +64,13 @@ The server currently provides the following tools to an LLM:
     ```
 
 4.  **Run the server:**
-    The server will start in development mode with hot-reloading.
+
+    **Development Mode (with MCP Inspector):**
     ```bash
-    uvicorn app:app --reload
+    uv run fastmcp dev main.py:mcp
+    ```
+
+    **Production / Stdio Mode:**
+    ```bash
+    uv run fastmcp run main.py:mcp
     ```
