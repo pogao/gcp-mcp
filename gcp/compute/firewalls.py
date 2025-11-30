@@ -1,27 +1,30 @@
-import json
 from app import mcp
 from google.cloud import compute_v1
 from gcp.utils import handle_gcp_exceptions
 
 
 @mcp.tool()
-def list_firewall_rules(project_id: str):
+def list_firewall_rules(project_id: str) -> list:
     """
-    Retrieves a comprehensive list of all firewall rules within a specified Google Cloud project.
-    Use this tool for broad queries about firewall configurations or when you need to see all rules at once.
+    Retrieves a comprehensive list of all firewall rules within a specified
+    Google Cloud project.
+    Use this tool for broad queries about firewall configurations or
+    when you need to see all rules at once.
 
     Args:
         project_id: The unique identifier for the Google Cloud project.
 
     Returns:
-        A list of dictionaries, where each dictionary represents a complete firewall rule.
+        A list of dictionaries, where each dictionary represents a complete
+        firewall rule.
     """
     return list_firewall_rules_logic(project_id)
 
 
 @handle_gcp_exceptions
-def list_firewall_rules_logic(project_id: str):
+def list_firewall_rules_logic(project_id: str) -> list:
     results = []
+    firewall_data = {}
     with compute_v1.FirewallsClient() as client:
         request = compute_v1.ListFirewallsRequest(project=project_id)
         firewall_rules = client.list(request)
@@ -38,7 +41,7 @@ def list_firewall_rules_logic(project_id: str):
                 "disabled": rule.disabled,
                 "priority": rule.priority,
                 "self_link": rule.self_link,
-        }
+            }
 
         results.append(firewall_data)
 
@@ -46,7 +49,7 @@ def list_firewall_rules_logic(project_id: str):
 
 
 @mcp.tool()
-def list_firewall_rules_per_vpc(project_id: str, vpc_name: str):
+def list_firewall_rules_per_vpc(project_id: str, vpc_name: str) -> list:
     """
     Allows you to only list the firewall rules crreated for a
     specific VPC network name. The list of rules are returned in
@@ -66,7 +69,7 @@ def list_firewall_rules_per_vpc(project_id: str, vpc_name: str):
 
 
 @handle_gcp_exceptions
-def list_firewall_rules_per_vpc_logic(project_id: str, vpc_name: str):
+def list_firewall_rules_per_vpc_logic(project_id: str, vpc_name: str) -> list:
     vpc_rules_dict = []
     with compute_v1.FirewallsClient() as client:
         request = compute_v1.ListFirewallsRequest(project=project_id)
@@ -91,7 +94,7 @@ def list_firewall_rules_per_vpc_logic(project_id: str, vpc_name: str):
 
 
 @mcp.tool()
-def describe_firewall_rule(project_id: str, rule_name: str):
+def describe_firewall_rule(project_id: str, rule_name: str) -> dict:
     """
     Given a firewall rule name in parameter rule_name, this function will
     retrieve and return all the details of such firewall rule.
@@ -106,7 +109,7 @@ def describe_firewall_rule(project_id: str, rule_name: str):
 
 
 @handle_gcp_exceptions
-def describe_firewall_rule_logic(project_id: str, rule_name: str):
+def describe_firewall_rule_logic(project_id: str, rule_name: str) -> dict:
     with compute_v1.FirewallsClient() as client:
         request = compute_v1.GetFirewallRequest(
             project=project_id, firewall=rule_name)
@@ -130,7 +133,7 @@ def describe_firewall_rule_logic(project_id: str, rule_name: str):
 
 
 @mcp.tool()
-def unsafe_ssh_exposure(project_id: str):
+def unsafe_ssh_exposure(project_id: str) -> list:
     """
     Analyses all firewall rules looking for rules that expose SSH
     to anyone on the internet. This means, if any firewall rule
@@ -148,11 +151,11 @@ def unsafe_ssh_exposure(project_id: str):
 
 
 @handle_gcp_exceptions
-def unsafe_ssh_exposure_logic(project_id: str):
+def unsafe_ssh_exposure_logic(project_id: str) -> list:
     with compute_v1.FirewallsClient() as client:
         request = compute_v1.ListFirewallsRequest(project=project_id)
         firewall_rules = client.list(request)
-        unsafe_rules_as_dicts = [
+        unsafe_rules = [
             {
                 "name": rule.self_link.split("/")[-1],
                 "network": rule.network.split("/")[-1],
@@ -169,4 +172,4 @@ def unsafe_ssh_exposure_logic(project_id: str):
             )
         ]
 
-        return unsafe_rules_as_dicts
+        return unsafe_rules
