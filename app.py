@@ -13,3 +13,6 @@ mcp = FastMCP(
         organization and gather information about it.
     """,
 )
+
+from gcp.compute import instances
+from gcp.compute import firewalls
