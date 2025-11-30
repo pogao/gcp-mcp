@@ -29,7 +29,9 @@ def setup_logging():
         foreign_pre_chain=shared_processors,
     )
 
-    handler = logging.StreamHandler(sys.stdout)
+    # output log message to stderr instead of stdout
+    # to avoid conflicting with FastMCP's output.
+    handler = logging.StreamHandler(sys.stderr)
     handler.setFormatter(formatter)
 
     root_logger = logging.getLogger()
