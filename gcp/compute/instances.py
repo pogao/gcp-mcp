@@ -1,11 +1,10 @@
-import json
 from app import mcp
 from google.cloud import compute_v1
 from gcp.utils import handle_gcp_exceptions
 
 
 @mcp.tool()
-def list_gcp_instances(project_id: str, zone: str):
+def list_gcp_instances(project_id: str, zone: str) -> list:
     """
     Lists all Google Compute Engine VM instances in a zone of the
     specified project ID. The list of VMs is returned in a Python
@@ -16,11 +15,11 @@ def list_gcp_instances(project_id: str, zone: str):
     * zone: the zone you want to list. Must be in the format
     'us-central1-a' and be a string.
     """
-    return _list_all_instances_in_project_logic(project_id, zone)
+    return list_all_instances_in_project_logic(project_id, zone)
 
 
 @handle_gcp_exceptions
-def _list_all_instances_in_project_logic(project_id: str, zone: str):
+def list_all_instances_in_project_logic(project_id: str, zone: str) -> list:
     results = []
     with compute_v1.InstancesClient() as instance_client:
         request = compute_v1.ListInstancesRequest(
@@ -43,12 +42,16 @@ def _list_all_instances_in_project_logic(project_id: str, zone: str):
 @mcp.tool()
 def describe_gcp_instance(instance_name: str, project_id: str, zone: str) -> dict:
     """
-    Fetches detailed metadata about a single Google Compute Engine (GCE) VM instance.
-    Use this tool to find comprehensive information like network interfaces (IP addresses), disk details, machine type, status, labels, and service accounts associated with a specific instance.
+    Fetches detailed metadata about a single Google Compute Engine (GCE) VM
+    instance.
+    Use this tool to find comprehensive information like network
+    interfaces (IP addresses), disk details, machine type, status, labels,
+    and service accounts associated with a specific instance.
 
     Args:
         instance_name: The name of the GCE instance to describe.
-        project_id: The unique identifier for the Google Cloud project where the instance resides.
+        project_id: The unique identifier for the Google Cloud project
+        where the instance resides.
         zone: The zone where the instance is located, e.g., 'us-central1-a'.
 
     Returns:
