@@ -11,4 +11,5 @@ dependencies = [
     "google-cloud-compute>=1.40.0",
     "starlette>=0.37.0",
     "structlog>=25.5.0",
+    "google-cloud-storage>=3.6.0",
 ]
