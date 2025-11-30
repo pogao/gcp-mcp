@@ -70,7 +70,3 @@ def describe_gcp_instance_logic(instance_name: str, project_id: str, zone: str):
         instance_details_json = compute_v1.Instance.to_json(instance_details)
 
         return json.loads(instance_details_json)
-etails = client.get(request=request)
-        instance_details_json = compute_v1.Instance.to_json(instance_details)
-
-        return json.loads(instance_details_json)
