@@ -21,15 +21,28 @@ def list_firewall_rules(project_id: str):
 
 @handle_gcp_exceptions
 def list_firewall_rules_logic(project_id: str):
+    results = []
     with compute_v1.FirewallsClient() as client:
         request = compute_v1.ListFirewallsRequest(project=project_id)
         firewall_rules = client.list(request)
 
-        rules_as_dict = [
-            json.loads(compute_v1.Firewall.to_json(rule)) for rule in firewall_rules
-        ]
+        for rule in firewall_rules:
+            firewall_data = {
+                "name": rule.name,
+                "network": rule.network,
+                "direction": rule.direction,
+                "allowed": rule.allowed,
+                "source_ranges": rule.source_ranges,
+                "source_tags": rule.source_tags,
+                "destination_ranges": rule.destination_ranges,
+                "disabled": rule.disabled,
+                "priority": rule.priority,
+                "self_link": rule.self_link,
+        }
 
-        return rules_as_dict
+        results.append(firewall_data)
+
+    return results
 
 
 @mcp.tool()
@@ -58,13 +71,23 @@ def list_firewall_rules_per_vpc_logic(project_id: str, vpc_name: str):
     with compute_v1.FirewallsClient() as client:
         request = compute_v1.ListFirewallsRequest(project=project_id)
         firewall_rules = client.list(request)
+        for rule in firewall_rules:
+            if rule.network.endswith(f"/{vpc_name}"):
+                rule_data = {
+                    "name": rule.name,
+                    "network": rule.network,
+                    "direction": rule.direction,
+                    "allowed": rule.allowed,
+                    "source_ranges": rule.source_ranges,
+                    "source_tags": rule.source_tags,
+                    "destination_ranges": rule.destination_ranges,
+                    "disabled": rule.disabled,
+                    "priority": rule.priority,
+                    "self_link": rule.self_link,
+                }
+                vpc_rules_dict.append(rule_data)
 
-        vpc_rules_dict = [
-            json.loads(compute_v1.Firewall.to_json(rule))
-            for rule in firewall_rules
-            if rule.network.endswith(f"/{vpc_name}")
-        ]
-        return vpc_rules_dict
+    return vpc_rules_dict
 
 
 @mcp.tool()
@@ -90,7 +113,20 @@ def describe_firewall_rule_logic(project_id: str, rule_name: str):
 
         firewall_rule = client.get(request=request)
 
-        return json.loads(compute_v1.Firewall.to_json(firewall_rule))
+        firewall_rule_dict = {
+            "name": firewall_rule.name,
+            "network": firewall_rule.network,
+            "direction": firewall_rule.direction,
+            "allowed": firewall_rule.allowed,
+            "source_ranges": firewall_rule.source_ranges,
+            "source_tags": firewall_rule.source_tags,
+            "destination_ranges": firewall_rule.destination_ranges,
+            "disabled": firewall_rule.disabled,
+            "priority": firewall_rule.priority,
+            "self_link": firewall_rule.self_link,
+        }
+
+        return firewall_rule_dict
 
 
 @mcp.tool()

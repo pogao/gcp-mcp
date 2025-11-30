@@ -41,7 +41,7 @@ def _list_all_instances_in_project_logic(project_id: str, zone: str):
 
 
 @mcp.tool()
-def describe_gcp_instance(instance_name: str, project_id: str, zone: str):
+def describe_gcp_instance(instance_name: str, project_id: str, zone: str) -> dict:
     """
     Fetches detailed metadata about a single Google Compute Engine (GCE) VM instance.
     Use this tool to find comprehensive information like network interfaces (IP addresses), disk details, machine type, status, labels, and service accounts associated with a specific instance.
@@ -52,7 +52,7 @@ def describe_gcp_instance(instance_name: str, project_id: str, zone: str):
         zone: The zone where the instance is located, e.g., 'us-central1-a'.
 
     Returns:
-        A single dictionary containing the full metadata of the specified VM instance.
+        A dict containing the full metadata of the specified VM instance.
     """
     return describe_gcp_instance_logic(
         instance_name=instance_name, project_id=project_id, zone=zone
@@ -60,13 +60,24 @@ def describe_gcp_instance(instance_name: str, project_id: str, zone: str):
 
 
 @handle_gcp_exceptions
-def describe_gcp_instance_logic(instance_name: str, project_id: str, zone: str):
+def describe_gcp_instance_logic(instance_name: str, project_id: str, zone: str) -> dict:
     with compute_v1.InstancesClient() as client:
         request = compute_v1.GetInstanceRequest(
             project=project_id, instance=instance_name, zone=zone
         )
 
         instance_details = client.get(request=request)
-        instance_details_json = compute_v1.Instance.to_json(instance_details)
+        instance_details_dict = {
+            "name": instance_details.name,
+            "status": instance_details.status,
+            "machine_type": instance_details.machine_type.split("/")[-1],
+            "can_ip_forward": instance_details.can_ip_forward,
+            "cpu_platform": instance_details.cpu_platform,
+            "deletion_protection": instance_details.deletion_protection,
+            "creation_timestamp": instance_details.creation_timestamp,
+            "description": instance_details.description,
+            "self_link": instance_details.self_link,
+            "zone": instance_details.zone,
+        }
 
-        return json.loads(instance_details_json)
+        return instance_details_dict
