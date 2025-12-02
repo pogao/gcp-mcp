@@ -48,7 +48,7 @@ def find_project_owners(project_id: str) -> list:
     Retrieves the full Identity and Access Management (IAM)
     policy for a specified Google Cloud project and
     identifies principals that are using basic IAM role
-    "Owner" - which is a well-known bad practice.
+    "Owner" - which is a well-known bad security practice.
 
     This function is useful for answering questions about who has
     the "Owner" role assigned to them. Use this tool when a user
