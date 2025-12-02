@@ -3,7 +3,7 @@ from unittest.mock import MagicMock, patch
 from google.api_core import exceptions
 
 from gcp.compute.instances import (
-    _list_all_instances_in_project_logic as list_all_instances_in_project,
+    list_all_instances_in_project_logic as list_all_instances_in_project,
 )
 
 
