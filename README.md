@@ -24,18 +24,23 @@ The server currently provides the following tools to an LLM:
 - **Describe Firewall Rule**: Get detailed information about a single, named firewall rule.
 - **🛡️ Unsafe SSH Exposure Analysis**: A security-focused tool that actively scans for firewall rules that dangerously expose SSH (port 22) to the entire internet (`0.0.0.0/0`).
 
+#### Cloud IAM
+
+- **List Project IAM Policy**: Retrieves the full Identity and Access Management (IAM) policy for a specified project.
+- **🛡️ Find Project Owners**: A security-focused tool that finds principals with the highly-privileged `roles/owner` basic role assigned to them.
+
 #### Cloud Storage
 
-- **List Buckets**: Retrieve a list of all Google Cloud Storage buckets in a project.
-- **Describe Bucket**: Get detailed metadata for a specific storage bucket.
-- **Check Uniform Bucket-Level Access (UBLA)**: Verify if a bucket has UBLA enabled.
+- **List GCS Buckets**: Retrieve a list of all Google Cloud Storage buckets in a project.
+- **Describe GCS Bucket**: Get detailed metadata for a specific storage bucket.
+- **Check UBLA**: Verify if a bucket has Uniform Bucket-Level Access (UBLA) enabled.
 - **🛡️ Public Bucket Analysis**: A security-focused tool that checks if a bucket is publicly accessible to the internet.
 
 ## Technology Stack
 
 - **Backend**: Python 3
 - **Framework**: FastAPI & `fastmcp`
-- **Cloud SDK**: `google-cloud-compute` and `google-cloud-storage` for interacting with the GCP API.
+- **Cloud SDK**: `google-cloud-compute`, `google-cloud-storage` and `google-cloud-resource-manager` for interacting with the GCP API.
 - **Logging**: Structured JSON logging implemented with `structlog`.
 - **Code Quality**:
   - Centralized exception handling using Python decorators.
