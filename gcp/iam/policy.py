@@ -40,3 +40,43 @@ def list_project_iam_logic(project_id: str) -> dict:
         policy = client.get_iam_policy(request=request)
 
     return MessageToDict(policy)
+
+
+@mcp.tool()
+def find_project_owners(project_id: str) -> list:
+    """
+    Retrieves the full Identity and Access Management (IAM)
+    policy for a specified Google Cloud project and
+    identifies principals that are using basic IAM role
+    "Owner" - which is a well-known bad practice.
+
+    This function is useful for answering questions about who has
+    the "Owner" role assigned to them. Use this tool when a user
+    asks "Who has a binding to role Owner in project X?".
+
+    The IAM policy consists of a list of bindings that associate a
+    set of members with a role.
+
+    Args:
+        project_id: The unique identifier for the Google Cloud
+        project.
+
+    Returns:
+        A list of princpals that have IAM role "Owner" bound to
+        them.
+    """
+    return find_project_owners_logic(project_id)
+
+
+@utils.handle_gcp_exceptions
+def find_project_owners_logic(project_id: str) -> list:
+    project_owners = []
+    with resourcemanager_v3.ProjectsClient() as client:
+        project = f"projects/{project_id}"
+        request = iam_policy_pb2.GetIamPolicyRequest(resource=project)
+        policy = client.get_iam_policy(request=request)
+        for binding in policy.bindings:
+            if binding.role == "roles/owner":
+                project_owners.append(binding.members)
+
+    return project_owners
