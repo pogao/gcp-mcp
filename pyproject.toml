@@ -12,4 +12,5 @@ dependencies = [
     "starlette>=0.37.0",
     "structlog>=25.5.0",
     "google-cloud-storage>=3.6.0",
+    "google-cloud-resource-manager>=1.15.0",
 ]
