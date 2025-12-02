@@ -1,5 +1,5 @@
 from app import mcp
-from gcp import utils
+from gcp.utils import handle_gcp_exceptions
 from google.cloud import resourcemanager_v3
 from google.iam.v1 import iam_policy_pb2
 from google.protobuf.json_format import MessageToDict
@@ -32,7 +32,7 @@ def list_project_iam(project_id: str) -> dict:
     return list_project_iam_logic(project_id)
 
 
-@utils.handle_gcp_exceptions
+@handle_gcp_exceptions
 def list_project_iam_logic(project_id: str) -> dict:
     with resourcemanager_v3.ProjectsClient() as client:
         project = f"projects/{project_id}"
@@ -68,7 +68,7 @@ def find_project_owners(project_id: str) -> list:
     return find_project_owners_logic(project_id)
 
 
-@utils.handle_gcp_exceptions
+@handle_gcp_exceptions
 def find_project_owners_logic(project_id: str) -> list:
     project_owners = []
     with resourcemanager_v3.ProjectsClient() as client:
