@@ -5,7 +5,7 @@ from gcp.utils import handle_gcp_exceptions
 
 
 @mcp.tool()
-def list_gcp_instances(project_id: str, zone: str) -> list:
+def list_gcp_instances_per_zone(project_id: str, zone: str) -> list:
     """
     Lists all Google Compute Engine VM instances in a zone of the
     specified project ID. The list of VMs is returned in a Python
@@ -16,14 +16,47 @@ def list_gcp_instances(project_id: str, zone: str) -> list:
     * zone: the zone you want to list. Must be in the format
     'us-central1-a' and be a string.
     """
-    return list_all_instances_in_project_logic(project_id, zone)
+    return list_all_instances_per_zone_logic(project_id, zone)
 
 
 @handle_gcp_exceptions
-def list_all_instances_in_project_logic(project_id: str, zone: str) -> list:
+def list_all_instances_per_zone_logic(project_id: str, zone: str) -> list:
     results = []
     with compute_v1.InstancesClient() as instance_client:
         request = compute_v1.ListInstancesRequest(project=project_id, zone=zone)
+
+        instance_list = instance_client.list(request=request)
+
+        for instance in instance_list:
+            vm_data = {
+                "name": instance.name,
+                "status": str(instance.status),
+                "machine_type": instance.machine_type.split("/")[-1],
+            }
+
+            results.append(vm_data)
+
+        return results
+
+
+@mcp.tool()
+def list_all_instances_in_project(project_id: str) -> list:
+    """
+    Lists all Google Compute Engine VM instances in a zone of the
+    specified project ID. The list of VMs is returned in a Python
+    list that can be iterated over.
+
+    Args:
+    * project_id: the project ID where the VMs are. Must be a string.
+    """
+    return list_all_instances_in_project_logic(project_id)
+
+
+@handle_gcp_exceptions
+def list_all_instances_in_project_logic(project_id: str) -> list:
+    results = []
+    with compute_v1.InstancesClient() as instance_client:
+        request = compute_v1.ListInstancesRequest(project=project_id)
 
         instance_list = instance_client.list(request=request)
 
