@@ -14,6 +14,8 @@ mcp = FastMCP(
     """,
 )
 
-from gcp.storage import buckets
-from gcp.compute import firewalls
+
+from gcp.compute import disks
 from gcp.compute import instances
+from gcp.compute import firewalls
+from gcp.storage import buckets
