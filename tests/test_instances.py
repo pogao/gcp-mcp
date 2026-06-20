@@ -37,8 +37,7 @@ class TestGCPInstances(unittest.TestCase):
             mock_client_instance.__enter__.return_value = mock_client_instance
 
             project_id = "test-project"
-            zone = "test-zone"
-            result = list_all_instances_in_project(project_id, zone)
+            result = list_all_instances_in_project(project_id)
 
             self.assertIsInstance(result, list)
             self.assertEqual(len(result), 2)
@@ -55,7 +54,6 @@ class TestGCPInstances(unittest.TestCase):
 
             call_args = mock_client_instance.list.call_args
             self.assertEqual(call_args.kwargs["request"].project, project_id)
-            self.assertEqual(call_args.kwargs["request"].zone, zone)
 
     def test_list_all_instances_in_project_permission_denied(self):
         """
@@ -72,7 +70,7 @@ class TestGCPInstances(unittest.TestCase):
 
             mock_client_instance.__enter__.return_value = mock_client_instance
 
-            result = list_all_instances_in_project("test-project", "test-zone")
+            result = list_all_instances_in_project("test-project")
 
             self.assertIsInstance(result, list)
             self.assertEqual(result, [])
@@ -92,7 +90,7 @@ class TestGCPInstances(unittest.TestCase):
 
             mock_client_instance.__enter__.return_value = mock_client_instance
 
-            result = list_all_instances_in_project("test-project", "test-zone")
+            result = list_all_instances_in_project("test-project")
 
             self.assertIsInstance(result, list)
             self.assertEqual(result, [])
