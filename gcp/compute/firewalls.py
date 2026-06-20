@@ -51,7 +51,7 @@ def list_firewall_rules_logic(project_id: str) -> list:
 @mcp.tool()
 def list_firewall_rules_per_vpc(project_id: str, vpc_name: str) -> list:
     """
-    Allows you to only list the firewall rules crreated for a
+    Allows you to only list the firewall rules created for a
     specific VPC network name. The list of rules are returned in
     JSON format.
 
@@ -111,8 +111,7 @@ def describe_firewall_rule(project_id: str, rule_name: str) -> dict:
 @handle_gcp_exceptions
 def describe_firewall_rule_logic(project_id: str, rule_name: str) -> dict:
     with compute_v1.FirewallsClient() as client:
-        request = compute_v1.GetFirewallRequest(
-            project=project_id, firewall=rule_name)
+        request = compute_v1.GetFirewallRequest(project=project_id, firewall=rule_name)
 
         firewall_rule = client.get(request=request)
 
