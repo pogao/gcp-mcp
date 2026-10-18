@@ -12,16 +12,17 @@ The server currently provides the following tools to an LLM:
 
 ### ☁️ Google Cloud Platform Tools
 
-#### Compute Engine
+#### Compute Engine & VPC Networking
 
-- **List Instances**: List all VM instances within a specific project and zone.
-- **Describe Instance**: Get detailed information about a specific VM instance.
+Every read-only method of the Compute Engine API (VM instances, disks, firewall rules, networks, subnetworks, load balancers, routers and more) is available through four generic tools:
 
-#### VPC Networking & Firewalls
+- **List Compute Resource Types**: Discover the resource types, their read methods and each method's parameters.
+- **List Compute Resources**: List resources of one type in a zone or region, or across all locations at once, with optional Compute filter expressions.
+- **Get Compute Resource**: Get the full details of a single named resource.
+- **Call Compute Read Method**: Call any other read method, such as a VM's serial port output, the firewall rules applied to a VM, or a backend service's health.
 
-- **List All Firewall Rules**: Retrieve every firewall rule within a given project.
-- **List Firewall Rules per VPC**: Filter firewall rules for a specific VPC network.
-- **Describe Firewall Rule**: Get detailed information about a single, named firewall rule.
+The tools are built from the Compute Engine client library itself, and only `get` and `list` style methods that do not start long-running operations are exposed. Nothing they call can change your environment.
+
 - **🛡️ Unsafe SSH Exposure Analysis**: A security-focused tool that actively scans for firewall rules that dangerously expose SSH (port 22) to the entire internet (`0.0.0.0/0`).
 
 #### Cloud IAM

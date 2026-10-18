@@ -26,3 +26,21 @@ class TestToolRegistration(unittest.IsolatedAsyncioTestCase):
             },
             names,
         )
+
+    async def test_superseded_compute_tools_are_gone(self):
+        async with Client(mcp) as client:
+            names = {tool.name for tool in await client.list_tools()}
+
+        self.assertFalse(
+            {
+                "list_gcp_instances_per_zone",
+                "list_all_instances_in_project",
+                "describe_gcp_instance",
+                "list_gcp_disks_per_zone",
+                "describe_gcp_disk",
+                "list_firewall_rules",
+                "list_firewall_rules_per_vpc",
+                "describe_firewall_rule",
+            }
+            & names
+        )

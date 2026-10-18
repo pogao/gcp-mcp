@@ -15,8 +15,6 @@ mcp = FastMCP(
 )
 
 
-from gcp.compute import disks
-from gcp.compute import instances
 from gcp.compute import firewalls
 from gcp.compute import resources
 from gcp.storage import buckets
