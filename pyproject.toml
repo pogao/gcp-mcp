@@ -5,12 +5,12 @@ description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
-    "fastapi>=0.111.0",
-    "pydantic>=2.7.0",
-    "fastmcp>=2.13.0.2",
-    "google-cloud-compute>=1.40.0",
-    "starlette>=0.37.0",
-    "structlog>=25.5.0",
-    "google-cloud-storage>=3.6.0",
-    "google-cloud-resource-manager>=1.15.0",
+    "fastapi>=0.146.0",
+    "pydantic>=2.14.1",
+    "fastmcp>=4.1.1",
+    "google-cloud-compute>=1.56.0",
+    "starlette>=1.9.0",
+    "structlog>=26.1.0",
+    "google-cloud-storage>=3.17.1",
+    "google-cloud-resource-manager>=1.19.0",
 ]
