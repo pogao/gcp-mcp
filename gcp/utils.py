@@ -16,18 +16,11 @@ def handle_gcp_exceptions(func):
                 "executing_gcp_logic", function=func.__name__, args=args, kwargs=kwargs
             )
             return func(*args, **kwargs)
-        except exceptions.NotFound as e:
+        except exceptions.GoogleAPICallError as e:
             logger.error(
-                "gcp_resource_not_found",
+                "gcp_api_error",
                 function=func.__name__,
-                error=str(e),
-                exc_info=True,
-            )
-            raise ToolError(str(e)) from e
-        except exceptions.PermissionDenied as e:
-            logger.error(
-                "gcp_permissions_denied",
-                function=func.__name__,
+                error_type=type(e).__name__,
                 error=str(e),
                 exc_info=True,
             )
