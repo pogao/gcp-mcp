@@ -1,6 +1,7 @@
 import unittest
 from unittest.mock import MagicMock, patch
 from google.api_core import exceptions
+from fastmcp.exceptions import ToolError
 
 from gcp.storage.buckets import (
     list_gcs_buckets_logic,
@@ -38,8 +39,8 @@ class TestGCPStorageBuckets(unittest.TestCase):
         mock_client_instance.list_buckets.side_effect = exceptions.PermissionDenied(
             "Test permission denied"
         )
-        result = list_gcs_buckets_logic("test-project")
-        self.assertEqual(result, [])
+        with self.assertRaises(ToolError):
+            list_gcs_buckets_logic("test-project")
 
     @patch("gcp.storage.buckets.storage.Client")
     def test_describe_gcs_bucket_logic_success(self, MockStorageClient):
@@ -59,8 +60,8 @@ class TestGCPStorageBuckets(unittest.TestCase):
         mock_client_instance.get_bucket.side_effect = exceptions.PermissionDenied(
             "Test permission denied"
         )
-        result = describe_gcs_bucket_logic("test-project", "bucket-1")
-        self.assertEqual(result, {})
+        with self.assertRaises(ToolError):
+            describe_gcs_bucket_logic("test-project", "bucket-1")
 
     @patch("gcp.storage.buckets.storage.Client")
     def test_is_ubla_enabled_in_bucket_logic_enabled(self, MockStorageClient):
@@ -90,8 +91,8 @@ class TestGCPStorageBuckets(unittest.TestCase):
         mock_client_instance.get_bucket.side_effect = exceptions.PermissionDenied(
             "Test permission denied"
         )
-        result = is_ubla_enabled_in_bucket_logic("test-project", "bucket-1")
-        self.assertEqual(result, {})
+        with self.assertRaises(ToolError):
+            is_ubla_enabled_in_bucket_logic("test-project", "bucket-1")
 
     @patch("gcp.storage.buckets.storage.Client")
     def test_is_bucket_public_logic_all_users(self, MockStorageClient):
@@ -135,5 +136,5 @@ class TestGCPStorageBuckets(unittest.TestCase):
         mock_client_instance.get_bucket.side_effect = exceptions.PermissionDenied(
             "Test permission denied"
         )
-        result = is_bucket_public_logic("test-project", "bucket-1")
-        self.assertEqual(result, {})
+        with self.assertRaises(ToolError):
+            is_bucket_public_logic("test-project", "bucket-1")

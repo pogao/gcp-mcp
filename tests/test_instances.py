@@ -1,6 +1,7 @@
 import unittest
 from unittest.mock import MagicMock, patch
 from google.api_core import exceptions
+from fastmcp.exceptions import ToolError
 
 from gcp.compute.instances import (
     list_all_instances_in_project_logic as list_all_instances_in_project,
@@ -70,10 +71,8 @@ class TestGCPInstances(unittest.TestCase):
 
             mock_client_instance.__enter__.return_value = mock_client_instance
 
-            result = list_all_instances_in_project("test-project")
-
-            self.assertIsInstance(result, list)
-            self.assertEqual(result, [])
+            with self.assertRaises(ToolError):
+                list_all_instances_in_project("test-project")
 
     def test_list_all_instances_in_project_not_found(self):
         """
@@ -90,7 +89,5 @@ class TestGCPInstances(unittest.TestCase):
 
             mock_client_instance.__enter__.return_value = mock_client_instance
 
-            result = list_all_instances_in_project("test-project")
-
-            self.assertIsInstance(result, list)
-            self.assertEqual(result, [])
+            with self.assertRaises(ToolError):
+                list_all_instances_in_project("test-project")

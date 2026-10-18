@@ -1,6 +1,7 @@
 import unittest
 from unittest.mock import MagicMock, patch
 from google.api_core import exceptions
+from fastmcp.exceptions import ToolError
 
 from gcp.iam.policy import list_project_iam_logic
 
@@ -40,7 +41,5 @@ class TestGCPIAMPolicy(unittest.TestCase):
             "Test permission denied"
         )
 
-        result = list_project_iam_logic("test-project")
-
-        self.assertIsInstance(result, list)
-        self.assertEqual(result, [])
+        with self.assertRaises(ToolError):
+            list_project_iam_logic("test-project")

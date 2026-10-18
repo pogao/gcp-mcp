@@ -1,4 +1,5 @@
 import functools
+from fastmcp.exceptions import ToolError
 from google.api_core import exceptions
 import structlog
 
@@ -22,7 +23,7 @@ def handle_gcp_exceptions(func):
                 error=str(e),
                 exc_info=True,
             )
-            return [] if "list" in func.__name__ or "unsafe" in func.__name__ else {}
+            raise ToolError(str(e)) from e
         except exceptions.PermissionDenied as e:
             logger.error(
                 "gcp_permissions_denied",
@@ -30,6 +31,6 @@ def handle_gcp_exceptions(func):
                 error=str(e),
                 exc_info=True,
             )
-            return [] if "list" in func.__name__ or "unsafe" in func.__name__ else {}
+            raise ToolError(str(e)) from e
 
     return wrapper
