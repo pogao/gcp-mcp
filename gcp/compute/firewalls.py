@@ -4,7 +4,7 @@ from gcp.utils import handle_gcp_exceptions
 
 
 @mcp.tool()
-def unsafe_ssh_exposure(project_id: str) -> list:
+def unsafe_ssh_exposure(project_id: str) -> list[dict[str, str]]:
     """
     Analyses all firewall rules looking for rules that expose SSH
     to anyone on the internet. This means, if any firewall rule
@@ -21,6 +21,22 @@ def unsafe_ssh_exposure(project_id: str) -> list:
     return unsafe_ssh_exposure_logic(project_id)
 
 
+OPEN_INTERNET_RANGES = frozenset({"0.0.0.0/0", "::/0"})
+TCP_PROTOCOLS = frozenset({"tcp", "6", "all"})
+
+
+def _covers_port(port_spec: str, port: int) -> bool:
+    low, _, high = port_spec.partition("-")
+    return int(low) <= port <= int(high or low)
+
+
+def _allows_ssh(allowed: compute_v1.Allowed) -> bool:
+    # An empty port list allows every port of the protocol.
+    return allowed.I_p_protocol in TCP_PROTOCOLS and (
+        not allowed.ports or any(_covers_port(p, 22) for p in allowed.ports)
+    )
+
+
 @handle_gcp_exceptions
 def unsafe_ssh_exposure_logic(project_id: str) -> list:
     with compute_v1.FirewallsClient() as client:
@@ -28,18 +44,15 @@ def unsafe_ssh_exposure_logic(project_id: str) -> list:
         firewall_rules = client.list(request)
         unsafe_rules = [
             {
-                "name": rule.self_link.split("/")[-1],
+                "name": rule.name,
                 "network": rule.network.split("/")[-1],
             }
             for rule in firewall_rules
             if (
-                "0.0.0.0/0" in rule.source_ranges
-                and rule.enabled
+                OPEN_INTERNET_RANGES.intersection(rule.source_ranges)
+                and not rule.disabled
                 and rule.direction == "INGRESS"
-                and any(
-                    allowed.ip_protocol == "tcp" and "22" in allowed.ports
-                    for allowed in rule.allowed
-                )
+                and any(_allows_ssh(allowed) for allowed in rule.allowed)
             )
         ]
 
