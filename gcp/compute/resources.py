@@ -7,7 +7,8 @@ from gcp.compute.registry import RESOURCE_TYPES, ReadMethod, call_read_method
 
 ResourceTypeName = Literal[tuple(RESOURCE_TYPES)]
 
-LOCATION_FIELDS = frozenset({"project", "zone", "region", "parent_id"})
+SCOPE_FIELDS = frozenset({"project", "parent_id"})
+LOCATION_FIELDS = frozenset({"zone", "region"})
 # Compute rejects a page size above 500.
 MAX_PAGE_SIZE = 500
 
@@ -20,7 +21,7 @@ def _accepted(read_method: ReadMethod, params: dict) -> dict:
 @mcp.tool()
 def list_compute_resource_types(
     resource_type: ResourceTypeName | None = None,
-) -> list | dict:
+) -> list[dict[str, Any]] | dict[str, Any]:
     """
     Discovers the Compute Engine resource types and read-only methods this
     server can query. Call it with no argument to see every resource type and
@@ -56,7 +57,7 @@ def list_compute_resources(
     region: str | None = None,
     filter: str | None = None,
     max_results: int | None = None,
-) -> list:
+) -> list[dict[str, Any]]:
     """
     Lists Compute Engine resources of one type, such as VM instances, disks,
     firewall rules, networks, subnetworks or backend services. Each item is
@@ -103,7 +104,7 @@ def get_compute_resource(
     project_id: str | None = None,
     zone: str | None = None,
     region: str | None = None,
-) -> dict:
+) -> dict[str, Any]:
     """
     Fetches the full details of one Compute Engine resource by name, such as
     a VM instance, disk, firewall rule, network or backend service.
@@ -126,7 +127,10 @@ def get_compute_resource(
             f"'{resource_type}' has no get method. "
             "Use call_compute_read_method with one of: " + ", ".join(rt.methods)
         )
-    name_fields = [f for f in read_method.required if f not in LOCATION_FIELDS]
+    # For regions and zones the name field is `region` or `zone` itself.
+    name_fields = [f for f in read_method.required if f not in SCOPE_FIELDS]
+    if len(name_fields) > 1:
+        name_fields = [f for f in name_fields if f not in LOCATION_FIELDS]
     if len(name_fields) > 1:
         raise ToolError(
             f"Getting '{resource_type}' needs {', '.join(name_fields)}. "
@@ -134,16 +138,17 @@ def get_compute_resource(
         )
     params = _accepted(read_method, {"project": project_id, "zone": zone, "region": region})
     if name_fields:
-        if name is None:
+        if name is not None:
+            params[name_fields[0]] = name
+        elif name_fields[0] not in params:
             raise ToolError(f"Getting '{resource_type}' requires a name.")
-        params[name_fields[0]] = name
     return call_read_method(resource_type, "get", params)
 
 
 @mcp.tool()
 def call_compute_read_method(
     resource_type: ResourceTypeName, method: str, params: dict[str, Any]
-) -> Any:
+) -> dict[str, Any] | list[dict[str, Any]]:
     """
     Calls any read-only Compute Engine method that the list and get tools do
     not cover. Use list_compute_resource_types to find the method names and

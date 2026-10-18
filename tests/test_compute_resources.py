@@ -160,6 +160,19 @@ class TestListComputeResources(unittest.IsolatedAsyncioTestCase):
                 )
 
 
+    @patch("google.cloud.compute_v1.InstancesClient")
+    async def test_empty_list_is_returned_as_structured_result(self, InstancesClient):
+        mock_client(InstancesClient).list.return_value = instances_pager()
+
+        async with Client(mcp) as mcp_client:
+            result = await mcp_client.call_tool(
+                "list_compute_resources",
+                {"resource_type": "instances", "project_id": "p", "zone": "us-central1-a"},
+            )
+
+        self.assertEqual(result.structured_content, {"result": []})
+
+
 class TestGetComputeResource(unittest.IsolatedAsyncioTestCase):
     @patch("google.cloud.compute_v1.InstancesClient")
     async def test_get_instance_sends_instance_name(self, InstancesClient):
@@ -208,6 +221,39 @@ class TestGetComputeResource(unittest.IsolatedAsyncioTestCase):
         request = client.get.call_args.kwargs["request"]
         self.assertEqual((request.firewall, request.project), ("allow-ssh", "p"))
         self.assertEqual(payload(result)["sourceRanges"], ["0.0.0.0/0"])
+
+    @patch("google.cloud.compute_v1.RegionsClient")
+    async def test_get_region_sends_name_as_region(self, RegionsClient):
+        client = mock_client(RegionsClient)
+        client.get.return_value = compute_v1.Region(name="us-central1", status="UP")
+
+        async with Client(mcp) as mcp_client:
+            result = await mcp_client.call_tool(
+                "get_compute_resource",
+                {"resource_type": "regions", "name": "us-central1", "project_id": "p"},
+            )
+
+        request = client.get.call_args.kwargs["request"]
+        self.assertEqual((request.region, request.project), ("us-central1", "p"))
+        self.assertEqual(payload(result)["status"], "UP")
+
+    @patch("google.cloud.compute_v1.InstanceSettingsServiceClient")
+    async def test_get_zonal_singleton_needs_no_name(self, InstanceSettingsServiceClient):
+        client = mock_client(InstanceSettingsServiceClient)
+        client.get.return_value = compute_v1.InstanceSettings(zone="us-central1-a")
+
+        async with Client(mcp) as mcp_client:
+            await mcp_client.call_tool(
+                "get_compute_resource",
+                {
+                    "resource_type": "instance_settings_service",
+                    "project_id": "p",
+                    "zone": "us-central1-a",
+                },
+            )
+
+        request = client.get.call_args.kwargs["request"]
+        self.assertEqual((request.project, request.zone), ("p", "us-central1-a"))
 
     @patch("google.cloud.compute_v1.InstancesClient")
     async def test_get_without_zone_is_a_tool_error(self, InstancesClient):
