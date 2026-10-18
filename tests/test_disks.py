@@ -1,6 +1,7 @@
 import unittest
 from unittest.mock import MagicMock, patch
 from google.api_core import exceptions
+from fastmcp.exceptions import ToolError
 
 from gcp.compute.disks import (
     list_gcp_disks_per_zone_logic as list_gcp_disks_per_zone,
@@ -96,10 +97,8 @@ class TestGCPDisksList(unittest.TestCase):
             )
             mock_client_instance.__enter__.return_value = mock_client_instance
 
-            result = list_gcp_disks_per_zone("test-project", "us-central1-a")
-
-            self.assertIsInstance(result, list)
-            self.assertEqual(result, [])
+            with self.assertRaises(ToolError):
+                list_gcp_disks_per_zone("test-project", "us-central1-a")
 
     def test_list_gcp_disks_per_zone_not_found(self):
         """
@@ -114,10 +113,8 @@ class TestGCPDisksList(unittest.TestCase):
             )
             mock_client_instance.__enter__.return_value = mock_client_instance
 
-            result = list_gcp_disks_per_zone("test-project", "us-central1-a")
-
-            self.assertIsInstance(result, list)
-            self.assertEqual(result, [])
+            with self.assertRaises(ToolError):
+                list_gcp_disks_per_zone("test-project", "us-central1-a")
 
 
 class TestGCPDisksDescribe(unittest.TestCase):
@@ -158,8 +155,8 @@ class TestGCPDisksDescribe(unittest.TestCase):
 
     def test_describe_gcp_disk_not_found(self):
         """
-        Tests the 'failure path' where the disk does not exist; the decorator
-        returns an empty dict for non-list functions.
+        Tests the 'failure path' where the disk does not exist; the tool
+        reports an error.
         """
         with patch(
             "gcp.compute.disks.compute_v1.DisksClient"
@@ -170,14 +167,12 @@ class TestGCPDisksDescribe(unittest.TestCase):
                 "Test not found"
             )
 
-            result = describe_gcp_disk(
-                disk_name="missing-disk",
-                project_id="test-project",
-                zone="us-central1-a",
-            )
-
-            self.assertIsInstance(result, dict)
-            self.assertEqual(result, {})
+            with self.assertRaises(ToolError):
+                describe_gcp_disk(
+                    disk_name="missing-disk",
+                    project_id="test-project",
+                    zone="us-central1-a",
+                )
 
     def test_describe_gcp_disk_permission_denied(self):
         """
@@ -192,14 +187,12 @@ class TestGCPDisksDescribe(unittest.TestCase):
                 "Test permission denied"
             )
 
-            result = describe_gcp_disk(
-                disk_name="disk-1",
-                project_id="test-project",
-                zone="us-central1-a",
-            )
-
-            self.assertIsInstance(result, dict)
-            self.assertEqual(result, {})
+            with self.assertRaises(ToolError):
+                describe_gcp_disk(
+                    disk_name="disk-1",
+                    project_id="test-project",
+                    zone="us-central1-a",
+                )
 
 
 if __name__ == "__main__":
