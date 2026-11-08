@@ -53,6 +53,10 @@ def configure_logging(level: str) -> None:
         )
     )
     logging.basicConfig(handlers=[handler], level=level, force=True)
+    fastmcp_logger = logging.getLogger("fastmcp")
+    fastmcp_logger.handlers.clear()
+    fastmcp_logger.setLevel(logging.NOTSET)
+    fastmcp_logger.propagate = True
 
 
 if __name__ == "__main__":
