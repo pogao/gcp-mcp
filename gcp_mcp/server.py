@@ -4,6 +4,7 @@ from collections.abc import Sequence
 from concurrent.futures import ThreadPoolExecutor
 from importlib.metadata import version
 
+import fastmcp
 import structlog
 from fastmcp import FastMCP
 from fastmcp.server.auth import AccessToken, RemoteAuthProvider
@@ -27,6 +28,7 @@ log = structlog.get_logger(__name__)
 
 
 def build_server(settings: Settings) -> FastMCP:
+    fastmcp.settings.check_for_updates = "off"
     server = FastMCP(
         "gcp-mcp",
         instructions=INSTRUCTIONS,

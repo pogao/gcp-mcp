@@ -1,3 +1,4 @@
+import fastmcp
 import httpx2
 import pytest
 from fastmcp import Client
@@ -82,3 +83,11 @@ async def test_streamable_http_lists_the_same_tools():
 
     assert names == LEGACY_TOOLS
     assert protocol == "2026-07-28"
+
+
+def test_building_the_server_turns_off_the_fastmcp_update_check(monkeypatch):
+    monkeypatch.setattr(fastmcp.settings, "check_for_updates", "stable")
+
+    build_server(Settings())
+
+    assert fastmcp.settings.check_for_updates == "off"
