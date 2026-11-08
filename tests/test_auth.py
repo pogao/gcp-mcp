@@ -105,9 +105,17 @@ async def test_a_token_for_the_advertised_resource_lists_tools(auth_settings, is
 
 
 @pytest.mark.anyio
-async def test_a_valid_token_passes_the_bearer_check(auth_settings, issuer_key):
+@pytest.mark.parametrize(
+    "claims",
+    [
+        pytest.param({}, id="exp only"),
+        pytest.param({"nbf": int(time.time()) - 60, "iat": int(time.time()) - 60}, id="valid now"),
+        pytest.param({"iat": int(time.time()) + 60}, id="issued by a clock a minute ahead"),
+    ],
+)
+async def test_a_valid_token_passes_the_bearer_check(auth_settings, issuer_key, claims):
     async with serving(auth_settings) as transport:
-        response = await post_mcp(transport, token(issuer_key))
+        response = await post_mcp(transport, token(issuer_key, **claims))
 
     assert response.status_code != 401
 
@@ -122,6 +130,9 @@ async def test_a_valid_token_passes_the_bearer_check(auth_settings, issuer_key):
         pytest.param({"exp": int(time.time()) - 60}, id="expired"),
         pytest.param({"exp": None}, id="no expiry"),
         pytest.param({"iss": "https://other.example.com"}, id="wrong issuer"),
+        pytest.param({"nbf": int(time.time()) + 3600}, id="not yet valid"),
+        pytest.param({"iat": int(time.time()) + 600}, id="issued in the future"),
+        pytest.param({"nbf": "soon"}, id="nbf is not a number"),
     ],
 )
 async def test_a_bad_token_is_refused(auth_settings, issuer_key, claims):
