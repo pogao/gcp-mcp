@@ -19,7 +19,7 @@ import google.auth
 import google.auth.credentials
 import httpx2
 import uritemplate
-from google.auth.exceptions import DefaultCredentialsError, RefreshError
+from google.auth.exceptions import DefaultCredentialsError, RefreshError, TransportError
 from google.auth.transport.requests import Request
 
 from gcp_mcp.discovery import CLOUD_PLATFORM_SCOPE, Param, ReadMethod, Registry
@@ -146,6 +146,9 @@ class Gcp:
             headers = dict(await self.credentials.headers())
         except (DefaultCredentialsError, RefreshError) as error:
             raise CredentialsUnavailable() from error
+        except TransportError as error:
+            problem = "failed on the network while refreshing the server's credentials"
+            raise GcpUnreachable(read_method.service, problem) from error
         if request.body is not None:
             headers["content-type"] = "application/json"
         try:
