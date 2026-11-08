@@ -36,6 +36,7 @@ dev = [
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["."]
+addopts = ["-p", "tests.settings_env"]
 
 [tool.ruff]
 target-version = "py313"

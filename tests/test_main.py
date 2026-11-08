@@ -2,6 +2,7 @@ import logging
 
 import pytest
 import structlog
+from joserfc.jwk import RSAKey
 
 from gcp_mcp.__main__ import main
 
@@ -33,3 +34,18 @@ def test_debug_logs_reach_stderr_as_json_when_serving(monkeypatch, root_logger, 
 
     assert main(["--log-level", "DEBUG"]) == 0
     assert '"event": "serving"' in capsys.readouterr().err
+
+
+def test_require_auth_over_stdio_exits_with_code_2(capsys):
+    assert main(["--require-auth"]) == 2
+    assert "invalid settings: require_auth needs transport=http" in capsys.readouterr().err
+
+
+def test_a_public_key_flag_points_to_the_environment_variable(monkeypatch, capsys):
+    monkeypatch.setattr("gcp_mcp.__main__.serve", lambda server, config: None)
+    pem = RSAKey.generate_key(2048).as_pem(private=False).decode()
+    argv = ["--transport", "http", "--require-auth", "--base-url", "https://mcp.example.com"]
+    argv += ["--auth-issuer", "https://issuer.example.com", "--auth-public-key", pem]
+
+    assert main(argv) == 2
+    assert "GCP_MCP_AUTH_PUBLIC_KEY" in capsys.readouterr().err
