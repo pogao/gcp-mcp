@@ -56,12 +56,13 @@ def auth_provider(config: ServerConfig) -> RemoteAuthProvider | None:
         case StdioConfig() | HttpConfig(auth=None):
             return None
         case HttpConfig(auth=auth):
-            verifier = ExpiringJWTVerifier(
+            verifier = StrictJWTVerifier(
                 jwks_uri=auth.jwks_uri,
                 public_key=auth.public_key,
                 issuer=auth.issuer,
                 audience=auth.audience,
                 required_scopes=list(auth.required_scopes),
+                allowed_subjects=auth.allowed_subjects,
             )
             return RemoteAuthProvider(
                 token_verifier=verifier,
@@ -71,12 +72,24 @@ def auth_provider(config: ServerConfig) -> RemoteAuthProvider | None:
             )
 
 
-class ExpiringJWTVerifier(JWTVerifier):
+class StrictJWTVerifier(JWTVerifier):
+    def __init__(self, *, allowed_subjects: tuple[str, ...], **kwargs: Any) -> None:
+        super().__init__(**kwargs)
+        self.allowed_subjects = allowed_subjects
+
     async def verify_token(self, token: str) -> AccessToken | None:
         access = await super().verify_token(token)
         if access is None or access.expires_at is None or not_yet_valid(access.claims):
             return None
+        if not subject_allowed(access.claims, self.allowed_subjects):
+            return None
         return access
+
+
+def subject_allowed(claims: Mapping[str, Any], allowed_subjects: tuple[str, ...]) -> bool:
+    if not allowed_subjects:
+        return True
+    return any(claims.get(name) in allowed_subjects for name in ("sub", "email"))
 
 
 def not_yet_valid(claims: Mapping[str, Any]) -> bool:

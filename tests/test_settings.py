@@ -21,6 +21,7 @@ READ_SCOPED_AUTH = AuthConfig(
     public_key=None,
     audience="https://mcp.example.com/mcp",
     required_scopes=("gcp:read",),
+    allowed_subjects=(),
     base_url="https://mcp.example.com",
 )
 
