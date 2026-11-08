@@ -42,6 +42,7 @@ REVIEWED_WRITE_WORDS: Mapping[str, str] = {
     "datastore.projects.runQuery": "runs a read query",
     "domains.projects.locations.registrations.retrieveRegisterParameters": "returns prices",
     "domains.projects.locations.registrations.retrieveTransferParameters": "returns prices",
+    "drive.changes.getStartPageToken": "returns the cursor to start reading changes from",
     "drive.files.export": "returns the file in the response",
     "firestore.projects.databases.documents.runAggregationQuery": "runs a read query",
     "firestore.projects.databases.documents.runQuery": "runs a read query",
@@ -163,6 +164,13 @@ KNOWN_SECRETS = (
     "apigee.organizations.environments.keyvaluemaps.entries.list",
     "apigee.organizations.apis.keyvaluemaps.entries.get",
     "recommendationengine.projects.locations.catalogs.eventStores.predictionApiKeyRegistrations.list",
+    "threatintelligence.projects.alerts.getPassword",
+    "vmwareengine.projects.locations.privateClouds.showVcenterCredentials",
+    "recaptchaenterprise.projects.keys.retrieveLegacySecretKey",
+    "developerconnect.projects.locations.connections.gitRepositoryLinks.fetchReadToken",
+    "developerconnect.projects.locations.connections.gitRepositoryLinks.fetchReadWriteToken",
+    "gkebackup.projects.locations.backupPlans.backups.getBackupIndexDownloadUrl",
+    "baremetalsolution.projects.locations.instances.loadAuthInfo",
     *(
         f"walletobjects.{kind}object.{verb}"
         for kind in "eventticket flight generic giftcard loyalty offer transit".split()
@@ -188,6 +196,10 @@ KNOWN_READS = (
     "firestore.projects.databases.documents.runQuery",
     "datastore.projects.runQuery",
     "secretmanager.projects.secrets.list",
+    "identitytoolkit.getPasswordPolicy",
+    "dataform.projects.locations.repositories.computeAccessTokenStatus",
+    "displayvideo.advertisers.listAssignedTargetingOptions",
+    "drive.changes.getStartPageToken",
 )
 
 
@@ -304,6 +316,25 @@ KNOWN_READS = (
 )
 def test_admit(args: tuple, verdict: Admitted | Excluded) -> None:
     assert admit(*args) == verdict
+
+
+@pytest.mark.parametrize(
+    ("name", "sensitive"),
+    [
+        ("getSignedUrl", True),
+        ("getPrivateKey", True),
+        ("getAuthInfo", True),
+        ("getPassphrase", True),
+        ("getPasswd", True),
+        ("getSecretValue", True),
+        ("getSyncToken", False),
+        ("getSecretVersion", False),
+        ("listAssignedRoles", False),
+    ],
+)
+def test_sensitive_names_end_in_a_credential_word(name: str, sensitive: bool) -> None:
+    verdict = admit(f"example.things.{name}", "GET", False, "Thing", "example.things")
+    assert verdict == (Excluded(SECRETS) if sensitive else Admitted(accepts_body=False))
 
 
 @pytest.mark.parametrize(
