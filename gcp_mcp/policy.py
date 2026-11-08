@@ -98,6 +98,10 @@ READ_VERBS = frozenset(
         "preview",
         "aggregated",
         "batch",
+        "aggregate",
+        "enumerate",
+        "explain",
+        "is",
     }
 )
 
