@@ -1,12 +1,12 @@
 from dataclasses import dataclass
-from typing import Literal, Self
+from typing import Annotated, Literal, Self
 
 from cryptography.exceptions import UnsupportedAlgorithm
 from cryptography.hazmat.primitives.asymmetric.rsa import RSAPublicKey
 from cryptography.hazmat.primitives.serialization import load_pem_public_key
 from pydantic import Field, field_validator, model_validator
 from pydantic_core import PydanticCustomError
-from pydantic_settings import BaseSettings, SettingsConfigDict
+from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
 
 MCP_PATH = "/mcp"
 
@@ -54,11 +54,18 @@ class Settings(BaseSettings):
     auth_jwks_uri: str | None = None
     auth_public_key: str | None = None
     auth_audience: str | None = None
-    auth_required_scopes: list[str] = []
+    auth_required_scopes: Annotated[list[str], NoDecode] = []
     max_response_bytes: int = Field(100_000, ge=1)
     default_page_size: int = Field(100, ge=1)
     request_timeout_s: float = Field(60.0, gt=0)
     log_level: Literal["DEBUG", "INFO", "WARNING", "ERROR"] = "INFO"
+
+    @field_validator("auth_required_scopes", mode="before")
+    @classmethod
+    def split_scopes(cls, value: object) -> object:
+        if isinstance(value, str):
+            return [scope for part in value.split(",") if (scope := part.strip())]
+        return value
 
     @field_validator("auth_public_key")
     @classmethod

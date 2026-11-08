@@ -86,7 +86,7 @@ def test_require_auth_reads_the_environment(monkeypatch):
     monkeypatch.setenv("GCP_MCP_BASE_URL", "https://mcp.example.com")
     monkeypatch.setenv("GCP_MCP_AUTH_ISSUER", "https://issuer.example.com")
     monkeypatch.setenv("GCP_MCP_AUTH_JWKS_URI", "https://issuer.example.com/jwks.json")
-    monkeypatch.setenv("GCP_MCP_AUTH_REQUIRED_SCOPES", '["gcp:read"]')
+    monkeypatch.setenv("GCP_MCP_AUTH_REQUIRED_SCOPES", "gcp:read")
 
     assert Settings().config().auth == READ_SCOPED_AUTH
 
