@@ -38,3 +38,4 @@ select = ["E", "F", "I", "UP", "B"]
 
 [tool.ruff.lint.isort]
 combine-as-imports = true
+known-first-party = ["gcp_mcp"]
