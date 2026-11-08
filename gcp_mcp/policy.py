@@ -45,6 +45,7 @@ DENY: Mapping[str, str] = {
     "aiplatform.projects.locations.reasoningEngines.runtimeRevisions.query": "runs an agent",
     "aiplatform.reasoningEngines.query": "runs an agent",
     "aiplatform.reasoningEngines.runtimeRevisions.query": "runs an agent",
+    "contentwarehouse.projects.locations.documents.search": "runs model inference",
     "discoveryengine.projects.locations.groundingConfigs.check": "runs model inference",
     "genomics.projects.workers.checkIn": "reports worker status and takes work",
     "genomics.workers.checkIn": "reports worker status and takes work",

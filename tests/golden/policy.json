@@ -304,7 +304,6 @@
     "contentwarehouse.projects.locations.documents.fetchAcl",
     "contentwarehouse.projects.locations.documents.get",
     "contentwarehouse.projects.locations.documents.referenceId.get",
-    "contentwarehouse.projects.locations.documents.search",
     "databasecenter.aggregateIssueStats",
     "databasecenter.folders.aggregateQueryStats",
     "databasecenter.organizations.aggregateQueryStats",
