@@ -97,7 +97,7 @@ The same run with environment variables:
 GCP_MCP_TRANSPORT=http GCP_MCP_PORT=8888 uv run gcp-mcp
 ```
 
-`GET /healthz` returns `OK`. Logs are JSON lines on stderr. Run `uv run gcp-mcp --help` to list every flag.
+`GET /healthz` returns `OK`. Logs are JSON lines on stderr, except for the `Starting MCP server` message that fastmcp prints first. Run `uv run gcp-mcp --help` to list every flag.
 
 The HTTP transport has no authentication yet. Keep `--host` on a loopback address.
 

@@ -46,12 +46,13 @@ def http_app(server: FastMCP) -> StarletteWithLifespan:
 def serve(server: FastMCP, config: ServerConfig) -> None:
     match config:
         case StdioConfig():
-            server.run("stdio")
+            server.run("stdio", show_banner=False)
         case HttpConfig(host=host, port=port):
             if not is_loopback(host):
                 log.warning("serving without authentication on a non-loopback host", host=host)
             server.run(
                 "http",
+                show_banner=False,
                 host=host,
                 port=port,
                 stateless_http=STATELESS_HTTP,
