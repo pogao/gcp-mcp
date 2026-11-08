@@ -17,8 +17,9 @@ Inference endpoints (predict, generateContent, translateText) are not reads. The
 no stored state and cost money.
 
 tests/test_policy.py runs `admit` offline over every method of every discovery document
-bundled with google-api-python-client and checks invariants with oracles independent
-of these tables.
+bundled with google-api-python-client, checks invariants with oracles independent of
+these tables, and diffs admitted POSTs and refused GETs against tests/golden/policy.json,
+so a rule or corpus change is a reviewed diff.
 """
 
 import re

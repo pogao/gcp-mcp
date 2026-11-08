@@ -5,6 +5,7 @@ from collections.abc import Mapping
 import pytest
 
 from gcp_mcp.policy import DENY, Admitted, Excluded, admit, verb
+from scripts import golden
 from tests.corpus import CorpusMethod, bundled_methods
 
 GET_NOT_A_READ = "GET whose name is not a read verb; some GET methods mutate"
@@ -332,3 +333,7 @@ def test_known_reads_are_admitted(
     verdict_types_by_id: dict[str, set[type]], method_id: str
 ) -> None:
     assert verdict_types_by_id.get(method_id) == {Admitted}
+
+
+def test_golden_file_pins_admitted_posts_and_refused_gets() -> None:
+    assert golden.main(["--check"]) == 0
