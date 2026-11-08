@@ -3,7 +3,7 @@
 `admit` is the only judge of HTTP methods and method names. First match wins:
 
 1. DELETE, PATCH, and PUT mutate.
-2. DENY lists methods that look like reads but are not.
+2. DENY and DENY_PATTERNS list methods that look like reads but are not.
 3. SENSITIVE and SENSITIVE_IDS match reads that return credentials or secrets.
 4. A long-running operation response starts work, unless the method is a GET on an
    `*operations` resource, which polls an existing operation.
@@ -14,7 +14,9 @@
    body only when it declares a request schema.
 
 Inference endpoints (predict, generateContent, translateText) are not reads. They observe
-no stored state and cost money.
+no stored state and cost money. DENY_PATTERNS also refuses searches whose request body can
+ask a model to summarize and the service to keep the results, because `admit` never sees
+the body.
 
 tests/test_policy.py runs `admit` offline over every method of every discovery document
 bundled with google-api-python-client, checks invariants with oracles independent of
@@ -42,6 +44,12 @@ DENY: Mapping[str, str] = {
     "merchantapi.accounts.dataSources.fetch": "starts a data source fetch",
     "notebooks.projects.locations.instances.checkAuthorization": "is a step of an OAuth flow",
 }
+
+DENY_PATTERNS: tuple[re.Pattern[str], ...] = (
+    re.compile(r"^discoveryengine\..*\.servingConfigs\.(search|searchLite)$"),
+    re.compile(r"^retail\..*\.(servingConfigs|placements)\.search$"),
+    re.compile(r"^dialogflow\..*\.suggestions\.searchKnowledge$"),
+)
 
 SENSITIVE = re.compile(
     r"(?i)(password|credential|secret|token|signed|downloadurl|authinfo|authstring|keystring"
@@ -177,6 +185,8 @@ def admit(
         return Excluded(f"mutating HTTP method {http_method}")
     if method_id in DENY:
         return Excluded(DENY[method_id])
+    if any(pattern.match(method_id) for pattern in DENY_PATTERNS):
+        return Excluded("runs model inference and stores results")
     name = method_id.rpartition(".")[2]
     if SENSITIVE.search(name) or any(pattern.match(method_id) for pattern in SENSITIVE_IDS):
         return Excluded("reveals credentials or secrets")
