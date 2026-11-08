@@ -1,10 +1,26 @@
 import json
+import threading
 
+import google.auth
+import google.auth.credentials
+import google.oauth2.credentials
+import httpx2
 import pytest
 
 from gcp_mcp.discovery import CLOUD_PLATFORM_SCOPE, ReadMethod, Registry, parse_service
-from gcp_mcp.errors import BadArguments, GcpApiError
-from gcp_mcp.rest import Limits, PreparedRequest, bound, parse_error, prepare, redact
+from gcp_mcp.errors import BadArguments, GcpApiError, UnknownMethod, UnsupportedResponse
+from gcp_mcp.rest import (
+    AdcCredentials,
+    CallResult,
+    Gcp,
+    Limits,
+    PreparedRequest,
+    StaticCredentials,
+    bound,
+    parse_error,
+    prepare,
+    redact,
+)
 
 REGISTRY = Registry()
 LIMITS = Limits(default_page_size=100, max_response_bytes=100_000, request_timeout_s=30.0)
@@ -576,3 +592,185 @@ def test_parse_error_falls_back_to_the_status_phrase_and_the_text(
 def test_parse_error_keeps_a_long_plain_body_short() -> None:
     error = parse_error(500, b"x" * 5000)
     assert error.message == "x" * 200
+
+
+@pytest.fixture
+def anyio_backend() -> str:
+    return "asyncio"
+
+
+class Google:
+    def __init__(self, response: httpx2.Response) -> None:
+        self.response = response
+        self.requests: list[httpx2.Request] = []
+
+    def __call__(self, request: httpx2.Request) -> httpx2.Response:
+        self.requests.append(request)
+        return self.response
+
+    def gcp(self, credentials=None, limits: Limits = LIMITS) -> Gcp:
+        http = httpx2.AsyncClient(transport=httpx2.MockTransport(self))
+        return Gcp(REGISTRY, limits, credentials or StaticCredentials("example-token"), http)
+
+
+@pytest.mark.anyio
+async def test_call_sends_exactly_one_authenticated_get() -> None:
+    google = Google(httpx2.Response(200, json={"name": "vm-1", "status": "RUNNING"}))
+    result = await google.gcp().call("compute", "instances.get", VM)
+    [request] = google.requests
+    assert request.method == "GET"
+    assert str(request.url) == (
+        "https://compute.googleapis.com/compute/v1/projects/example-project"
+        "/zones/us-central1-a/instances/vm-1?alt=json&prettyPrint=false"
+    )
+    assert request.headers["authorization"] == "Bearer example-token"
+    assert "x-goog-user-project" not in request.headers
+    assert request.content == b""
+    assert request.extensions["timeout"]["read"] == LIMITS.request_timeout_s
+    assert result == CallResult(
+        service="compute",
+        version="v1",
+        method="instances.get",
+        response={"name": "vm-1", "status": "RUNNING"},
+        next_page_token=None,
+        truncated=False,
+        omitted_items=0,
+        redacted_fields=0,
+    )
+
+
+@pytest.mark.anyio
+async def test_call_posts_the_body_and_surfaces_the_page_token() -> None:
+    answer = {"entries": [{"logName": "projects/example-project/logs/a"}], "nextPageToken": "next"}
+    google = Google(httpx2.Response(200, json=answer))
+    body = {"resourceNames": ["projects/example-project"]}
+    result = await google.gcp().call("logging", "entries.list", body=body)
+    [request] = google.requests
+    assert (request.method, str(request.url)) == (
+        "POST",
+        "https://logging.googleapis.com/v2/entries:list?alt=json&prettyPrint=false",
+    )
+    assert request.headers["content-type"] == "application/json"
+    assert json.loads(request.content) == {**body, "pageSize": 100}
+    assert (result.response, result.next_page_token) == (answer, "next")
+
+
+@pytest.mark.anyio
+async def test_call_honors_an_explicit_version() -> None:
+    google = Google(httpx2.Response(200, json={}))
+    result = await google.gcp().call("compute", "instances.get", VM, version="beta")
+    assert google.requests[0].url.path.startswith("/compute/beta/projects/example-project/")
+    assert result.version == "beta"
+
+
+@pytest.mark.anyio
+async def test_an_excluded_method_sends_nothing() -> None:
+    google = Google(httpx2.Response(200, json={}))
+    with pytest.raises(UnknownMethod) as caught:
+        await google.gcp().call("compute", "instances.delete", VM)
+    assert caught.value.excluded_reason is not None
+    assert google.requests == []
+
+
+@pytest.mark.anyio
+async def test_refused_arguments_send_nothing() -> None:
+    google = Google(httpx2.Response(200, json={}))
+    args = {"name": f"{SECRET_VERSION}/1:access"}
+    with pytest.raises(BadArguments):
+        await google.gcp().call("secretmanager", "projects.secrets.versions.get", args)
+    assert google.requests == []
+
+
+@pytest.mark.anyio
+async def test_a_403_envelope_becomes_a_gcp_api_error_about_the_server_identity() -> None:
+    envelope = {
+        "error": {"code": 403, "message": "Permission denied", "status": "PERMISSION_DENIED"}
+    }
+    google = Google(httpx2.Response(403, json=envelope))
+    with pytest.raises(GcpApiError) as caught:
+        await google.gcp().call("compute", "instances.get", VM)
+    assert (caught.value.status, caught.value.reason) == (403, "PERMISSION_DENIED")
+    assert "identity" in caught.value.for_llm()
+
+
+@pytest.mark.anyio
+async def test_a_redirect_is_an_error_and_is_not_followed() -> None:
+    google = Google(httpx2.Response(302, headers={"location": "https://elsewhere.example/"}))
+    with pytest.raises(GcpApiError) as caught:
+        await google.gcp().call("compute", "instances.get", VM)
+    assert caught.value.status == 302
+    assert len(google.requests) == 1
+
+
+@pytest.mark.anyio
+async def test_a_non_json_answer_is_unsupported() -> None:
+    png = httpx2.Response(200, content=b"\x89PNG\r\n", headers={"content-type": "image/png"})
+    google = Google(png)
+    with pytest.raises(UnsupportedResponse) as caught:
+        await google.gcp().call("compute", "instances.get", VM)
+    assert "image/png" in caught.value.message
+
+
+@pytest.mark.anyio
+async def test_call_redacts_then_bounds_the_answer() -> None:
+    answer = {
+        "items": [{"name": f"vm-{n}", "metadata": {"password": "example"}} for n in range(50)],
+        "nextPageToken": "next",
+    }
+    limits = Limits(default_page_size=100, max_response_bytes=1000, request_timeout_s=30.0)
+    google = Google(httpx2.Response(200, json=answer))
+    result = await google.gcp(limits=limits).call(
+        "compute", "instances.aggregatedList", {"project": "example-project"}
+    )
+    kept = len(result.response["items"])
+    assert 0 < kept < 50
+    assert (result.truncated, result.omitted_items, result.redacted_fields) == (True, 50 - kept, 50)
+    assert result.response["items"][0] == {"name": "vm-0", "metadata": {"password": "[redacted]"}}
+    assert result.next_page_token == "next"
+    assert len(json.dumps(result.response, separators=(",", ":"))) <= 1000
+
+
+@pytest.mark.anyio
+async def test_adc_credentials_send_the_quota_project(monkeypatch: pytest.MonkeyPatch) -> None:
+    calls = []
+
+    def default(scopes):
+        calls.append(scopes)
+        adc = google.oauth2.credentials.Credentials(
+            token="example-token", quota_project_id="example-project"
+        )
+        return adc, "example-project"
+
+    monkeypatch.setattr(google.auth, "default", default)
+    credentials = AdcCredentials()
+    assert calls == []
+    server = Google(httpx2.Response(200, json={}))
+    await server.gcp(credentials).call("compute", "instances.get", VM)
+    headers = server.requests[0].headers
+    assert headers["authorization"] == "Bearer example-token"
+    assert headers["x-goog-user-project"] == "example-project"
+    assert calls == [["https://www.googleapis.com/auth/cloud-platform"]]
+
+
+class Expired(google.auth.credentials.Credentials):
+    def __init__(self) -> None:
+        super().__init__()
+        self.refreshed_on: list[int] = []
+
+    def refresh(self, request: object) -> None:
+        self.refreshed_on.append(threading.get_ident())
+        self.token = f"fresh-token-{len(self.refreshed_on)}"
+
+
+@pytest.mark.anyio
+async def test_adc_credentials_refresh_off_the_event_loop_and_only_when_needed(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    adc = Expired()
+    monkeypatch.setattr(google.auth, "default", lambda scopes: (adc, None))
+    credentials = AdcCredentials()
+    first = await credentials.headers()
+    second = await credentials.headers()
+    assert first["authorization"] == second["authorization"] == "Bearer fresh-token-1"
+    assert len(adc.refreshed_on) == 1
+    assert adc.refreshed_on[0] != threading.get_ident()
