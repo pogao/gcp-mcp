@@ -1,16 +1,9 @@
-"""Errors the tool layer turns into messages for the model.
-
-`for_llm` returns one or two sentences that name what was wrong and the next move. It never
-carries credentials, inbound tokens, or stack traces. Only `tools.py` converts a `GcpMcpError`
-into a fastmcp `ToolError`, so this module and everything that raises from it stay fastmcp-free.
-"""
-
 from collections.abc import Mapping, Sequence
 
 
 class GcpMcpError(Exception):
     def for_llm(self) -> str:
-        return f"{self}."
+        return sentence(str(self))
 
 
 class UnknownService(GcpMcpError):
@@ -102,7 +95,7 @@ class GcpApiError(GcpMcpError):
         self.details = tuple(details)
 
     def for_llm(self) -> str:
-        return f"Google Cloud answered {self}."
+        return sentence(f"Google Cloud answered {self}")
 
 
 class UnsupportedResponse(GcpMcpError):
@@ -111,7 +104,12 @@ class UnsupportedResponse(GcpMcpError):
         self.message = message
 
     def for_llm(self) -> str:
-        return f"The response cannot be relayed: {self.message}. This server returns JSON only."
+        refused = sentence(f"The response cannot be relayed: {self.message}")
+        return f"{refused} This server returns JSON only."
+
+
+def sentence(text: str) -> str:
+    return text.rstrip(".") + "."
 
 
 def _closest(names: Sequence[str]) -> str:
