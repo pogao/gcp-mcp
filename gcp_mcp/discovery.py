@@ -15,15 +15,18 @@ one `ServiceRef` per service. `Registry.service` parses one document on demand i
 
 import json
 import re
+from collections import OrderedDict, defaultdict
 from collections.abc import Iterable, Iterator, Mapping
 from dataclasses import dataclass
+from difflib import get_close_matches
 from pathlib import Path
-from typing import Any, Literal, Protocol
+from typing import Any, Literal, NamedTuple, Protocol
 from urllib.parse import urlparse
 
 from googleapiclient.discovery_cache import DISCOVERY_DOC_DIR
 
-from gcp_mcp.policy import Excluded, Verdict, admit
+from gcp_mcp.errors import UnknownMethod, UnknownService, UnknownVersion
+from gcp_mcp.policy import Admitted, Excluded, Verdict, admit
 
 CLOUD_PLATFORM_SCOPE = "https://www.googleapis.com/auth/cloud-platform"
 
@@ -254,4 +257,99 @@ def _pagination(raw: Mapping[str, Any], schemas: Mapping[str, Any]) -> Paginatio
         size_param=size_param,
         size_max=int(size_max) if size_max is not None else None,
         in_body=in_body,
+    )
+
+
+class _Scanned(NamedTuple):
+    version: str
+    reads: int
+    title: str
+    description: str
+    docs_url: str
+
+
+class Registry:
+    def __init__(self, corpus: Corpus | None = None, *, cache_size: int = 16) -> None:
+        self._corpus = corpus if corpus is not None else BundledCorpus()
+        self._cache_size = cache_size
+        self._catalog: dict[str, ServiceRef] | None = None
+        self._specs: OrderedDict[tuple[str, str], ServiceSpec] = OrderedDict()
+
+    def services(self, query: str | None = None) -> tuple[ServiceRef, ...]:
+        refs = tuple(self._refs().values())
+        if query is None:
+            return refs
+        needle = query.lower()
+        return tuple(
+            ref for ref in refs if needle in ref.name.lower() or needle in ref.title.lower()
+        )
+
+    def service(self, name: str, version: str | None = None) -> ServiceSpec:
+        refs = self._refs()
+        ref = refs.get(name)
+        if ref is None:
+            raise UnknownService(name, get_close_matches(name, refs, n=5))
+        version = version or ref.default_version
+        if version not in ref.versions:
+            raise UnknownVersion(name, version, ref.versions)
+        key = (name, version)
+        spec = self._specs.get(key)
+        if spec is None:
+            spec = parse_service(self._corpus.load(name, version))
+            self._specs[key] = spec
+            if len(self._specs) > self._cache_size:
+                self._specs.popitem(last=False)
+        else:
+            self._specs.move_to_end(key)
+        return spec
+
+    def method(self, service: str, name: str, version: str | None = None) -> ReadMethod:
+        spec = self.service(service, version)
+        method = spec.methods.get(name)
+        if method is not None:
+            return method
+        reason = spec.excluded.get(name)
+        suggestions = () if reason else get_close_matches(name, spec.methods, n=5)
+        raise UnknownMethod(service, spec.version, name, suggestions, reason)
+
+    def _refs(self) -> dict[str, ServiceRef]:
+        if self._catalog is None:
+            self._catalog = self._scan()
+        return self._catalog
+
+    def _scan(self) -> dict[str, ServiceRef]:
+        found: defaultdict[str, list[_Scanned]] = defaultdict(list)
+        for name, version in self._corpus.names():
+            doc = self._corpus.load(name, version)
+            if not is_gcp(doc):
+                continue
+            reads = sum(isinstance(judge(raw), Admitted) for raw in walk_methods(doc))
+            found[name].append(
+                _Scanned(
+                    version,
+                    reads,
+                    doc["title"],
+                    doc.get("description", ""),
+                    doc.get("documentationLink", ""),
+                )
+            )
+        return {name: _ref(name, found[name]) for name in sorted(found)}
+
+
+def _ref(name: str, scanned: list[_Scanned]) -> ServiceRef:
+    scanned.sort(key=lambda row: version_rank(row.version), reverse=True)
+    candidates = [row for row in scanned if row.reads] or scanned
+    best_band = version_rank(candidates[0].version)[0]
+    default = max(
+        (row for row in candidates if version_rank(row.version)[0] == best_band),
+        key=lambda row: (row.reads, version_rank(row.version)),
+    )
+    return ServiceRef(
+        name=name,
+        title=default.title,
+        description=default.description,
+        docs_url=default.docs_url,
+        default_version=default.version,
+        versions=tuple(row.version for row in scanned),
+        read_methods=default.reads,
     )
