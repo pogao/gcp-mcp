@@ -66,12 +66,9 @@ def main(argv: list[str] | None = None) -> int:
     mode = parser.add_mutually_exclusive_group(required=True)
     mode.add_argument("--check", action="store_true")
     mode.add_argument("--write", action="store_true")
-    parser.add_argument("targets", nargs="*", metavar="target", help=", ".join(TARGETS))
+    parser.add_argument("targets", nargs="*", metavar="target", choices=list(TARGETS))
     args = parser.parse_args(argv)
     targets = args.targets or list(TARGETS)
-    for target in targets:
-        if target not in TARGETS:
-            parser.error(f"unknown target {target!r}; choose from {', '.join(TARGETS)}")
     stale = False
     for target in targets:
         current = TARGETS[target]()
@@ -79,7 +76,7 @@ def main(argv: list[str] | None = None) -> int:
         if args.write:
             path.write_text(current)
             continue
-        pinned = path.read_text() if path.exists() else ""
+        pinned = path.read_text()
         if pinned == current:
             continue
         stale = True

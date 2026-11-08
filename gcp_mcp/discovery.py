@@ -1,24 +1,18 @@
-"""Turn the bundled Google API discovery documents into a registry of GCP read methods.
-
-google-api-python-client ships one discovery document per service version under
+"""google-api-python-client ships one discovery document per service version under
 `googleapiclient.discovery_cache.documents`. Its `index.json` is stale and lists half of them,
-so the catalog is derived from the documents and `index.json` is never read. The only
-import from googleapiclient is the path of that directory.
+so the catalog is derived from the documents and `index.json` is never read.
 
-Only `parse_service` constructs a `ReadMethod`, and only for methods `policy.admit` admits.
-Holding a `ReadMethod` is proof that the read-only decision was made. Excluded methods are kept
-by name with their reason so an error can say why a method is refused.
-
-Nothing loads at import time. `Registry.services` scans the corpus once on first use and keeps
-one `ServiceRef` per service. `Registry.service` parses one document on demand into a small LRU.
+Only `parse_service` constructs a `ReadMethod`, and only for methods `policy.admit` admits, so
+holding one is proof that the read-only decision was made. `tests/test_layering.py` enforces it.
 """
 
 import json
 import re
-from collections import OrderedDict, defaultdict
+from collections import defaultdict
 from collections.abc import Iterable, Iterator, Mapping
 from dataclasses import dataclass
 from difflib import get_close_matches
+from functools import lru_cache
 from pathlib import Path
 from typing import Any, Literal, NamedTuple, Protocol
 from urllib.parse import urlparse
@@ -29,6 +23,7 @@ from gcp_mcp.errors import UnknownMethod, UnknownService, UnknownVersion
 from gcp_mcp.policy import Admitted, Excluded, Verdict, admit
 
 CLOUD_PLATFORM_SCOPE = "https://www.googleapis.com/auth/cloud-platform"
+DOCUMENTS = Path(DISCOVERY_DOC_DIR)
 
 NOT_GCP: Mapping[str, str] = {
     "admin": "Workspace",
@@ -135,17 +130,19 @@ class Corpus(Protocol):
 
 
 class BundledCorpus:
-    def __init__(self, directory: Path | None = None) -> None:
-        self._directory = directory or Path(DISCOVERY_DOC_DIR)
+    def __init__(self, directory: Path = DOCUMENTS) -> None:
+        self._directory = directory
 
     def names(self) -> Iterator[tuple[str, str]]:
-        for path in sorted(self._directory.glob("*.json")):
-            if path.name != "index.json":
-                name, _, version = path.stem.partition(".")
-                yield name, version
+        for path in sorted(self._directory.glob("*.*.json")):
+            name, _, version = path.stem.partition(".")
+            yield name, version
 
     def load(self, name: str, version: str) -> Mapping[str, Any]:
         return json.loads((self._directory / f"{name}.{version}.json").read_bytes())
+
+
+BUNDLED = BundledCorpus()
 
 
 def is_gcp(doc: Mapping[str, Any]) -> bool:
@@ -268,11 +265,10 @@ class _Scanned(NamedTuple):
 
 
 class Registry:
-    def __init__(self, corpus: Corpus | None = None, *, cache_size: int = 16) -> None:
-        self._corpus = corpus if corpus is not None else BundledCorpus()
-        self._cache_size = cache_size
+    def __init__(self, corpus: Corpus = BUNDLED, *, cache_size: int = 16) -> None:
+        self._corpus = corpus
         self._catalog: dict[str, ServiceRef] | None = None
-        self._specs: OrderedDict[tuple[str, str], ServiceSpec] = OrderedDict()
+        self._spec = lru_cache(maxsize=cache_size)(self._parse)
 
     def services(self, query: str | None = None) -> tuple[ServiceRef, ...]:
         refs = tuple(self._refs().values())
@@ -288,19 +284,11 @@ class Registry:
         ref = refs.get(name)
         if ref is None:
             raise UnknownService(name, get_close_matches(name, refs, n=5))
-        version = version or ref.default_version
+        if version is None:
+            version = ref.default_version
         if version not in ref.versions:
             raise UnknownVersion(name, version, ref.versions)
-        key = (name, version)
-        spec = self._specs.get(key)
-        if spec is None:
-            spec = parse_service(self._corpus.load(name, version))
-            self._specs[key] = spec
-            if len(self._specs) > self._cache_size:
-                self._specs.popitem(last=False)
-        else:
-            self._specs.move_to_end(key)
-        return spec
+        return self._spec(name, version)
 
     def method(self, service: str, name: str, version: str | None = None) -> ReadMethod:
         spec = self.service(service, version)
@@ -310,6 +298,9 @@ class Registry:
         reason = spec.excluded.get(name)
         suggestions = () if reason else get_close_matches(name, spec.methods, n=5)
         raise UnknownMethod(service, spec.version, name, suggestions, reason)
+
+    def _parse(self, name: str, version: str) -> ServiceSpec:
+        return parse_service(self._corpus.load(name, version))
 
     def _refs(self) -> dict[str, ServiceRef]:
         if self._catalog is None:
