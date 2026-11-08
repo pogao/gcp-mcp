@@ -7,6 +7,7 @@ from fastmcp import Client
 from fastmcp.client.transports import StreamableHttpTransport
 from joserfc import jwt
 from joserfc.jwk import RSAKey
+from structlog.testing import capture_logs
 
 from gcp_mcp.server import auth_provider, build_server, http_app
 from gcp_mcp.settings import HttpConfig, Settings, StdioConfig
@@ -191,6 +192,34 @@ async def test_a_token_from_an_unlisted_subject_is_refused_only_with_an_allowlis
 
     assert refused.status_code == 401
     assert admitted.status_code != 401
+
+
+@pytest.mark.anyio
+@pytest.mark.parametrize(
+    ("claims", "reason"),
+    [
+        pytest.param({"exp": None}, "exp", id="no expiry"),
+        pytest.param({"nbf": int(time.time()) + 3600}, "nbf", id="not yet valid"),
+        pytest.param({"iat": int(time.time()) + 600}, "iat", id="issued in the future"),
+        pytest.param({"sub": "4444"}, "subject", id="subject not allowed"),
+    ],
+)
+async def test_a_refusal_logs_its_reason_and_the_subject_but_not_the_token(
+    allowlist_settings, issuer_key, claims, reason
+):
+    claims = {"sub": "1234567890", "email": "stranger@example.com"} | claims
+    bearer = token(issuer_key, **claims)
+
+    with capture_logs() as logs:
+        async with serving(allowlist_settings) as transport:
+            response = await post_mcp(transport, bearer)
+
+    assert response.status_code == 401
+    [entry] = logs
+    assert entry["log_level"] == "info"
+    assert reason in entry["event"]
+    assert (entry["sub"], entry["email"]) == (claims["sub"], claims["email"])
+    assert bearer not in str(entry)
 
 
 @pytest.mark.anyio
