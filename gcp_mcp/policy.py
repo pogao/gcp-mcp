@@ -4,7 +4,8 @@
 
 1. DELETE, PATCH, and PUT mutate.
 2. DENY and DENY_PATTERNS list methods that look like reads but are not.
-3. SENSITIVE and SENSITIVE_IDS match reads that return credentials or secrets.
+3. SENSITIVE matches whole camelCase words of the last name segment, not substrings, and
+   SENSITIVE_IDS matches full ids. Both name reads that return credentials or secrets.
 4. A long-running operation response starts work, unless the method is a GET on an
    `*operations` resource, which polls an existing operation.
 5. A GET needs a leading verb in READ_VERBS or a name in READ_IDIOMS. This is default
@@ -57,9 +58,13 @@ DENY_PATTERNS: tuple[re.Pattern[str], ...] = (
     re.compile(r"^dialogflow\..*\.suggestions\.searchKnowledge$"),
 )
 
+# Matched against the last segment's words, lowercased and joined by spaces, so `signed`
+# never matches inside `Assigned`. `page` or `sync` before `token` names a cursor.
 SENSITIVE = re.compile(
-    r"(?i)(password|credential|secret|token|signed|downloadurl|authinfo|authstring|keystring"
-    r"|privatekey|authorizationcode|verificationcode|jwt)"
+    r"(?:^| )(?:(?:password|passwd|passphrase|secrets?|credentials?|jwt|signed"
+    r"|(?<!page )(?<!sync )tokens?)(?: (?:value|data|string|key|hash|url|code))*"
+    r"|auth string|key string|download url|auth info|authorization code|verification code"
+    r"|private key)$"
 )
 
 SENSITIVE_IDS: tuple[re.Pattern[str], ...] = (
@@ -181,6 +186,7 @@ POST_READ_VERBS = frozenset(
 )
 
 _LEADING_WORD = re.compile(r"[A-Za-z][a-z]*")
+_WORD = re.compile(r"[A-Z]+(?![a-z])|[A-Z]?[a-z]+")
 
 
 @dataclass(frozen=True, slots=True)
@@ -216,7 +222,8 @@ def admit(
     if any(pattern.match(method_id) for pattern in DENY_PATTERNS):
         return Excluded("runs model inference and stores results")
     name = method_id.rpartition(".")[2]
-    if SENSITIVE.search(name) or any(pattern.match(method_id) for pattern in SENSITIVE_IDS):
+    words = " ".join(word.lower() for word in _WORD.findall(name))
+    if SENSITIVE.search(words) or any(pattern.match(method_id) for pattern in SENSITIVE_IDS):
         return Excluded("reveals credentials or secrets")
     owner = resource.rpartition(".")[2]
     polls_operation = http_method == "GET" and owner.lower().endswith("operations")
