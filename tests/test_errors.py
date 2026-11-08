@@ -106,3 +106,9 @@ def test_unsupported_response_relays_its_message() -> None:
     error = UnsupportedResponse("the response is image/png, not JSON")
     assert "image/png" in error.for_llm()
     assert error.message == "the response is image/png, not JSON"
+
+
+def test_for_llm_never_doubles_the_period() -> None:
+    assert ".." not in GcpApiError(403, None, "Denied.", ()).for_llm()
+    assert ".." not in UnsupportedResponse("the body is not JSON.").for_llm()
+    assert ".." not in GcpMcpError("plain message.").for_llm()
