@@ -18,6 +18,10 @@ no stored state and cost money. DENY_PATTERNS also refuses searches whose reques
 ask a model to summarize and the service to keep the results, because `admit` never sees
 the body.
 
+The REST executor strips every response field whose name `REDACTED_FIELDS.search` matches,
+because general reads such as `container.projects.locations.clusters.get` return
+credentials beside the state they describe.
+
 tests/test_policy.py runs `admit` offline over every method of every discovery document
 bundled with google-api-python-client, checks invariants with oracles independent of
 these tables, and diffs admitted POSTs and refused GETs against tests/golden/policy.json,
@@ -78,6 +82,11 @@ SENSITIVE_IDS: tuple[re.Pattern[str], ...] = (
     # Apigee proxies keep credentials in key value maps.
     re.compile(r"^apigee\..*\.keyvaluemaps\.entries\.(get|list)$"),
     re.compile(r"^recommendationengine\..*\.predictionApiKeyRegistrations\.list$"),
+)
+
+REDACTED_FIELDS = re.compile(
+    r"(?i)(password|passwd|secret|credential|privatekey|clientkey|authstring|keystring"
+    r"|accesstoken|refreshtoken|authtoken|bearertoken)$"
 )
 
 LRO_RESPONSES = frozenset(
