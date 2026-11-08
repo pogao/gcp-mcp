@@ -110,6 +110,22 @@ READ_IDIOMS = frozenset(
         "batchGetStats",
         "batchRead",
         "testIamPermissions",
+        "Binary-read",
+        "Binary-vread",
+        "ConceptMap-search-translate",
+        "ConceptMap-translate",
+        "Consent-enforcement-status",
+        "Encounter-everything",
+        "Observation-lastn",
+        "Patient-consent-enforcement-status",
+        "Patient-everything",
+        "Resource-incoming-references",
+        "capabilities",
+        "history",
+        "vread",
+        "values",
+        "accessibilityClusters",
+        "configuredInsight",
     }
 )
 
