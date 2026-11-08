@@ -1,7 +1,8 @@
 import unittest
 from unittest.mock import MagicMock, patch
-from google.api_core import exceptions
+
 from fastmcp.exceptions import ToolError
+from google.api_core import exceptions
 
 from gcp.iam.policy import list_project_iam_logic
 
@@ -19,7 +20,9 @@ class TestGCPIAMPolicy(unittest.TestCase):
         mock_client_instance.__enter__.return_value = mock_client_instance
         mock_policy = MagicMock()
         mock_client_instance.get_iam_policy.return_value = mock_policy
-        expected_dict = {"bindings": [{"role": "roles/owner", "members": ["user:test@example.com"]}]}
+        expected_dict = {
+            "bindings": [{"role": "roles/owner", "members": ["user:test@example.com"]}]
+        }
         MockMessageToDict.return_value = expected_dict
 
         project_id = "test-project"

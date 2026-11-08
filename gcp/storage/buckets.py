@@ -1,6 +1,7 @@
+from google.cloud import storage
+
 from app import mcp
 from gcp.utils import handle_gcp_exceptions
-from google.cloud import storage
 
 
 @mcp.tool()

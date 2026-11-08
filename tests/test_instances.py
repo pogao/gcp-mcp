@@ -1,7 +1,8 @@
 import unittest
 from unittest.mock import MagicMock, patch
-from google.api_core import exceptions
+
 from fastmcp.exceptions import ToolError
+from google.api_core import exceptions
 
 from gcp.compute.instances import (
     list_all_instances_in_project_logic as list_all_instances_in_project,

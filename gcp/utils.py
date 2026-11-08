@@ -1,7 +1,8 @@
 import functools
+
+import structlog
 from fastmcp.exceptions import ToolError
 from google.api_core import exceptions
-import structlog
 
 logger = structlog.get_logger(__name__)
 
