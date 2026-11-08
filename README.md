@@ -75,14 +75,45 @@ The server currently provides the following tools to an LLM:
     gcloud auth application-default login
     ```
 
-4.  **Run the server:**
+### Run the server
 
-    **Development Mode (with MCP Inspector):**
-    ```bash
-    uv run fastmcp dev main.py:mcp
-    ```
+The `gcp-mcp` command builds the server from its settings and serves it. Every setting is a flag and an environment variable with the prefix `GCP_MCP_`. A flag wins over an environment variable.
 
-    **Production / Stdio Mode:**
-    ```bash
-    uv run fastmcp run main.py:mcp
-    ```
+To serve over stdio, the default, run:
+
+```bash
+uv run gcp-mcp
+```
+
+To serve over Streamable HTTP at `http://127.0.0.1:8888/mcp`, run:
+
+```bash
+uv run gcp-mcp --transport http --port 8888
+```
+
+The same run with environment variables:
+
+```bash
+GCP_MCP_TRANSPORT=http GCP_MCP_PORT=8888 uv run gcp-mcp
+```
+
+`GET /healthz` returns `OK`. Logs are JSON lines on stderr, except for the `Starting MCP server` message that fastmcp prints first. Run `uv run gcp-mcp --help` to list every flag.
+
+The HTTP transport has no authentication yet. Keep `--host` on a loopback address.
+
+### Connect Claude Desktop or Claude Code
+
+Add the server to the `mcpServers` object of the Claude Desktop configuration file, or to `.mcp.json` for Claude Code. Replace `/path/to/gcp-mcp` with the directory that holds this repository.
+
+```json
+{
+  "mcpServers": {
+    "gcp": {
+      "command": "uv",
+      "args": ["run", "--directory", "/path/to/gcp-mcp", "gcp-mcp"]
+    }
+  }
+}
+```
+
+The legacy command `uv run fastmcp run main.py:mcp` still works until the next pull requests replace the tools.

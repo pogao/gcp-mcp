@@ -545,7 +545,7 @@ server = [
 [[package]]
 name = "gcp-mcp"
 version = "0.1.0"
-source = { virtual = "." }
+source = { editable = "." }
 dependencies = [
     { name = "fastapi" },
     { name = "fastmcp" },
@@ -554,12 +554,14 @@ dependencies = [
     { name = "google-cloud-resource-manager" },
     { name = "google-cloud-storage" },
     { name = "pydantic" },
+    { name = "pydantic-settings" },
     { name = "starlette" },
     { name = "structlog" },
 ]
 
 [package.dev-dependencies]
 dev = [
+    { name = "httpx2" },
     { name = "pytest" },
     { name = "ruff" },
 ]
@@ -573,12 +575,14 @@ requires-dist = [
     { name = "google-cloud-resource-manager", specifier = ">=1.19.0" },
     { name = "google-cloud-storage", specifier = ">=3.17.1" },
     { name = "pydantic", specifier = ">=2.14.1" },
+    { name = "pydantic-settings", specifier = ">=2.16.0" },
     { name = "starlette", specifier = ">=1.9.0" },
     { name = "structlog", specifier = ">=26.1.0" },
 ]
 
 [package.metadata.requires-dev]
 dev = [
+    { name = "httpx2", specifier = ">=2.14.0" },
     { name = "pytest", specifier = ">=9.2" },
     { name = "ruff", specifier = ">=0.17" },
 ]
