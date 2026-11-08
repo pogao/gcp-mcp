@@ -318,6 +318,85 @@ def test_a_read_only_query_body_is_sent() -> None:
     assert json.loads(request.body) == body
 
 
+@pytest.mark.parametrize(
+    "method", ["projects.runQuery", "projects.lookup", "projects.runAggregationQuery"]
+)
+def test_a_snake_case_new_transaction_is_refused(method: str) -> None:
+    body = {"readOptions": {"new_transaction": {"read_write": {}}}}
+    assert "'readOptions.new_transaction'" in problems("datastore", method, "v1", DATASTORE, body)
+
+
+@pytest.mark.parametrize(
+    ("body", "path"),
+    [
+        ({"read_options": {"NewTransaction": {}}}, "read_options.NewTransaction"),
+        (
+            {"query": {"filter": {"compositeFilter": {"filters": [{"transaction_options": {}}]}}}},
+            "query.filter.compositeFilter.filters[0].transaction_options",
+        ),
+    ],
+)
+def test_a_transaction_key_is_refused_in_any_case(body: dict, path: str) -> None:
+    assert repr(path) in problems("datastore", "projects.runQuery", "v1", DATASTORE, body)
+
+
+def test_snake_case_body_keys_are_accepted_and_sent_as_given() -> None:
+    body = {"read_options": {"read_consistency": "STRONG"}, "query": {"kind": [{"name": "Task"}]}}
+    request = build("datastore", "projects.runQuery", "v1", DATASTORE, body)
+    assert json.loads(request.body) == body
+
+
+def test_a_snake_case_page_size_is_not_sent_twice() -> None:
+    body = {"resource_names": ["projects/example-project"], "page_size": 5}
+    request = build("logging", "entries.list", "v2", body=body)
+    assert json.loads(request.body) == body
+
+
+@pytest.mark.parametrize(
+    ("body", "path"),
+    [
+        ({"readOptions": {"readConsistancy": "STRONG"}}, "readOptions.readConsistancy"),
+        ({"query": {"kind": [{"name": "Task"}, {"nmae": "Task"}]}}, "query.kind[1].nmae"),
+        (
+            {"gqlQuery": {"queryString": "SELECT 1", "namedBindings": {"done": {"valeu": {}}}}},
+            "gqlQuery.namedBindings.done.valeu",
+        ),
+    ],
+)
+def test_an_unknown_nested_body_key_is_refused_with_its_path(body: dict, path: str) -> None:
+    assert repr(path) in problems("datastore", "projects.runQuery", "v1", DATASTORE, body)
+
+
+def test_any_key_of_a_map_field_is_accepted() -> None:
+    bindings = {
+        "done": {"value": {"booleanValue": False}},
+        "owner": {"value": {"stringValue": "a"}},
+    }
+    body = {"gqlQuery": {"queryString": "SELECT 1", "namedBindings": bindings}}
+    request = build("datastore", "projects.runQuery", "v1", DATASTORE, body)
+    assert json.loads(request.body) == body
+
+
+SERVICE_CHECK = {"serviceName": "example.googleapis.com"}
+
+
+def claims(value: dict) -> dict:
+    return {"attributes": {"request": {"auth": {"claims": value}}}}
+
+
+def test_a_free_form_struct_field_accepts_any_keys() -> None:
+    body = claims({"iss": "issuer", "ext": {"any": {"shape": [1, {"goes": True}]}}})
+    request = build("servicecontrol", "services.check", "v2", SERVICE_CHECK, body)
+    assert json.loads(request.body) == body
+
+
+@pytest.mark.parametrize("key", ["newTransaction", "new_transaction", "transaction_options"])
+def test_a_transaction_key_inside_a_free_form_struct_field_is_refused(key: str) -> None:
+    body = claims({"iss": "issuer", "ext": [{key: {}}]})
+    text = problems("servicecontrol", "services.check", "v2", SERVICE_CHECK, body)
+    assert repr(f"attributes.request.auth.claims.ext[0].{key}") in text
+
+
 def test_a_body_on_a_get_is_refused() -> None:
     text = problems("compute", "instances.get", "v1", VM, {"name": "vm-1"})
     assert "body" in text
