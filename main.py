@@ -1,6 +1,7 @@
-from app import mcp
 from starlette.requests import Request
 from starlette.responses import PlainTextResponse
+
+from app import mcp
 
 
 @mcp.custom_route("/healthz", methods=["GET"])

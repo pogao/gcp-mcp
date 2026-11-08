@@ -38,3 +38,11 @@ env/
 .idea/
 .vscode/
 *.swp
+
+# Tool caches
+.audit/
+.pytest_cache/
+.ruff_cache/
+
+# Credentials
+*service-account*.json

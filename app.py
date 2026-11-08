@@ -1,4 +1,5 @@
 from fastmcp import FastMCP
+
 from logging_config import setup_logging
 
 setup_logging()
@@ -15,8 +16,6 @@ mcp = FastMCP(
 )
 
 
-from gcp.compute import disks
-from gcp.compute import instances
-from gcp.compute import firewalls
-from gcp.storage import buckets
+from gcp.compute import disks, firewalls, instances
 from gcp.iam import policy
+from gcp.storage import buckets
