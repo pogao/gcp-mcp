@@ -1,3 +1,4 @@
+import re
 from dataclasses import dataclass
 from typing import Annotated, Literal, Self
 
@@ -9,6 +10,7 @@ from pydantic_core import PydanticCustomError
 from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
 
 MCP_PATH = "/mcp"
+SCOPE_TOKEN = re.compile(r"[\x21\x23-\x5b\x5d-\x7e]+")
 
 
 @dataclass(frozen=True, slots=True)
@@ -68,6 +70,30 @@ class Settings(BaseSettings):
         if isinstance(value, str):
             return [item for part in value.split(",") if (item := part.strip())]
         return value
+
+    @field_validator("auth_required_scopes")
+    @classmethod
+    def check_scopes(cls, scopes: list[str]) -> list[str]:
+        for scope in scopes:
+            if not SCOPE_TOKEN.fullmatch(scope):
+                raise PydanticCustomError(
+                    "scope_token",
+                    "{scope} is not an RFC 6749 scope token. Give a comma-separated list "
+                    "such as gcp:read,gcp:list",
+                    {"scope": repr(scope)},
+                )
+        return scopes
+
+    @field_validator("auth_allowed_subjects")
+    @classmethod
+    def check_subjects(cls, subjects: list[str]) -> list[str]:
+        if "" in subjects:
+            raise PydanticCustomError(
+                "subject",
+                "an allowed subject cannot be empty. Give a comma-separated list of sub or "
+                "email claims",
+            )
+        return subjects
 
     @field_validator("auth_public_key")
     @classmethod
