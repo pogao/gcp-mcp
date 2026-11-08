@@ -17,6 +17,7 @@ import uritemplate
 
 from gcp_mcp.discovery import Param, ReadMethod
 from gcp_mcp.errors import BadArguments
+from gcp_mcp.policy import REDACTED_FIELDS
 
 GLOBAL_PARAMS = frozenset(
     {
@@ -50,6 +51,7 @@ PLAIN_JSON = (("alt", "json"), ("prettyPrint", "false"))
 TRANSACTION_KEYS = frozenset({"newTransaction", "transaction", "transactionOptions"})
 UNSAFE_IN_RESERVED = "?#%\\"
 CUSTOM_METHOD = re.compile(r":[A-Za-z]+(?=/|$)")
+REDACTED = "[redacted]"
 
 
 @dataclass(frozen=True, slots=True)
@@ -129,6 +131,58 @@ def prepare(
         query=(*PLAIN_JSON, *sorted(query, key=lambda pair: pair[0])),
         body=None if content is None else json.dumps(content, separators=(",", ":")).encode(),
     )
+
+
+def redact(payload: Any) -> tuple[Any, int]:
+    count = 0
+
+    def walk(node: Any) -> Any:
+        nonlocal count
+        if isinstance(node, list):
+            return [walk(item) for item in node]
+        if not isinstance(node, dict):
+            return node
+        clean = {}
+        for key, value in node.items():
+            if REDACTED_FIELDS.search(key) and isinstance(value, str | dict | list):
+                clean[key] = REDACTED
+                count += 1
+            else:
+                clean[key] = walk(value)
+        return clean
+
+    return walk(payload), count
+
+
+def bound(payload: Any, max_bytes: int) -> tuple[Any, int]:
+    encoded = _compact(payload)
+    if len(encoded) <= max_bytes:
+        return payload, 0
+    payload = json.loads(encoded)
+    size, omitted = len(encoded), 0
+    lists = list(_lists(payload))
+    while size > max_bytes and (largest := max(lists, key=len, default=None)):
+        item = largest.pop()
+        size -= len(_compact(item)) + (1 if largest else 0)
+        omitted += 1
+        if detached := {id(node) for node in _lists(item)}:
+            lists = [node for node in lists if id(node) not in detached]
+    return payload, omitted
+
+
+def _compact(payload: Any) -> str:
+    return json.dumps(payload, separators=(",", ":"))
+
+
+def _lists(node: Any) -> Iterator[list[Any]]:
+    stack = [node]
+    while stack:
+        node = stack.pop()
+        if isinstance(node, list):
+            yield node
+            stack.extend(node)
+        elif isinstance(node, dict):
+            stack.extend(node.values())
 
 
 def _texts(param: Param, value: object) -> tuple[list[str], list[str]]:
