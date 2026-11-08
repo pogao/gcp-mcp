@@ -53,7 +53,7 @@ DENY_PATTERNS: tuple[re.Pattern[str], ...] = (
 
 SENSITIVE = re.compile(
     r"(?i)(password|credential|secret|token|signed|downloadurl|authinfo|authstring|keystring"
-    r"|privatekey|authorizationcode|verificationcode)"
+    r"|privatekey|authorizationcode|verificationcode|jwt)"
 )
 
 SENSITIVE_IDS: tuple[re.Pattern[str], ...] = (
@@ -66,6 +66,18 @@ SENSITIVE_IDS: tuple[re.Pattern[str], ...] = (
         r"^identitytoolkit\..*(accounts\.(batchGet|lookup|query)|queryAccounts|getAccountInfo)$"
     ),
     re.compile(r"^cloudkms\..*\.exportTrustedKeyWrappedCryptoKeyVersion$"),
+    # An auth config carries its decrypted credential.
+    re.compile(r"^integrations\..*\.authConfigs\.(get|list)$"),
+    re.compile(r"^redis\..*\.authTokens\.(get|list)$"),
+    re.compile(r"^androidmanagement\..*\.(enrollmentTokens|migrationTokens)\.(get|list)$"),
+    re.compile(r"^analyticsadmin\..*\.measurementProtocolSecrets\.(get|list)$"),
+    re.compile(r"^networkconnectivity\..*\.serviceConnectionTokens\.(get|list)$"),
+    re.compile(r"^vmwareengine\..*\.hcxActivationKeys\.(get|list)$"),
+    # The MACsec config holds each pre-shared connectivity association key.
+    re.compile(r"^compute\.interconnects\.getMacsecConfig$"),
+    # Apigee proxies keep credentials in key value maps.
+    re.compile(r"^apigee\..*\.keyvaluemaps\.entries\.(get|list)$"),
+    re.compile(r"^recommendationengine\..*\.predictionApiKeyRegistrations\.list$"),
 )
 
 LRO_RESPONSES = frozenset(
