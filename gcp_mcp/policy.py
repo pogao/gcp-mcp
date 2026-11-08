@@ -85,8 +85,11 @@ SENSITIVE_IDS: tuple[re.Pattern[str], ...] = (
 )
 
 REDACTED_FIELDS = re.compile(
-    r"(?i)(password|passwd|secret|credential|privatekey|clientkey|authstring|keystring"
-    r"|accesstoken|refreshtoken|authtoken|bearertoken)$"
+    r"(?i)(^pin|^token|password|passwd|passphrase|secret|secretvalue|credential"
+    r"|privatekey(data|file)?|clientkey|consumerkey|accountkey(file)?|accesskey|activationkey"
+    r"|pairingkey|presharedkey|rawkey|signerkey|webhookkey|apikeys?|authstring|keystring|psk|jwt"
+    r"|(access|refresh|auth|authentication|bearer|id|session|security|sas|activation"
+    r"|enrollment|migration)tokens?)$"
 )
 
 LRO_RESPONSES = frozenset(
