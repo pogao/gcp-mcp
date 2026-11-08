@@ -9,9 +9,9 @@ from fastmcp.exceptions import ToolError
 from fastmcp.tools import Tool
 from mcp.types import ToolAnnotations
 
-from gcp_mcp.discovery import Param
+from gcp_mcp.discovery import Pagination, Param
 from gcp_mcp.errors import GcpMcpError
-from gcp_mcp.rest import Gcp
+from gcp_mcp.rest import CallResult, Gcp
 
 READ_ONLY = ToolAnnotations(
     read_only_hint=True, destructive_hint=False, idempotent_hint=True, open_world_hint=True
@@ -112,10 +112,51 @@ def make_tools(gcp: Gcp) -> tuple[Tool, ...]:
             "docs_url": spec.docs_url,
         }
 
+    async def gcp_call(
+        service: str,
+        method: str,
+        args: dict[str, Any] | None = None,
+        body: dict[str, Any] | None = None,
+        version: str | None = None,
+    ) -> dict[str, Any]:
+        """Run one read method and return its JSON response. Pass the service, the method name
+        such as "instances.aggregatedList", and `args` keyed by the API's own parameter names
+        from gcp_describe_method, such as {"project": "example-project"}. Add "fields" to `args`
+        to narrow the response, such as "items.*.instances(name,status),nextPageToken". POST
+        reads such as logging "entries.list" take `body`. One call returns one page. When
+        next_page_token is set, pass it as pageToken to get the next page. The response is cut
+        to a size limit, and `truncated` says when. Mutating methods are refused."""
+        result = await gcp.call(service, method, args, body, version)
+        answer = asdict(result)
+        paging = registry.method(result.service, result.method, result.version).pagination
+        if hint := call_hint(result, paging):
+            answer["hint"] = hint
+        return answer
+
     return tuple(
         Tool.from_function(llm_errors(fn))
-        for fn in (gcp_services, gcp_methods, gcp_describe_method)
+        for fn in (gcp_services, gcp_methods, gcp_describe_method, gcp_call)
     )
+
+
+def call_hint(result: CallResult, paging: Pagination | None) -> str | None:
+    sentences = []
+    if result.truncated:
+        smaller = f" or a smaller {paging.size_param}" if paging and paging.size_param else ""
+        sentences.append(
+            f"{result.omitted_items} items were dropped to fit the size limit and no later page "
+            f"returns them, so repeat the call with fields{smaller}."
+        )
+    if result.next_page_token:
+        where = "body" if paging and paging.in_body else "args"
+        sentences.append(
+            f"More results exist, so call again with pageToken set to next_page_token in {where}."
+        )
+    if result.redacted_fields:
+        sentences.append(
+            f"{result.redacted_fields} credential-shaped fields were replaced with [redacted]."
+        )
+    return " ".join(sentences) or None
 
 
 def describe_param(param: Param) -> dict[str, Any]:

@@ -113,6 +113,28 @@ class GcpApiError(GcpMcpError):
         return f"{answer} {move}" if move else answer
 
 
+class CredentialsUnavailable(GcpMcpError):
+    def __init__(self) -> None:
+        super().__init__("the server's Google Cloud credentials are missing or expired")
+
+    def for_llm(self) -> str:
+        return (
+            "The server's own Google Cloud credentials are missing or expired. The operator must "
+            "run `gcloud auth application-default login` on the server's host. Different "
+            "arguments cannot fix this."
+        )
+
+
+class GcpUnreachable(GcpMcpError):
+    def __init__(self, service: str, problem: str) -> None:
+        super().__init__(f"the {service} request {problem}")
+        self.service = service
+        self.problem = problem
+
+    def for_llm(self) -> str:
+        return f"The {self.service} request {self.problem}, so retry the call."
+
+
 class UnsupportedResponse(GcpMcpError):
     def __init__(self, message: str) -> None:
         super().__init__(message)

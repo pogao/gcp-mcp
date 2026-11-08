@@ -19,10 +19,17 @@ import google.auth
 import google.auth.credentials
 import httpx2
 import uritemplate
+from google.auth.exceptions import DefaultCredentialsError, RefreshError
 from google.auth.transport.requests import Request
 
 from gcp_mcp.discovery import CLOUD_PLATFORM_SCOPE, Param, ReadMethod, Registry
-from gcp_mcp.errors import BadArguments, GcpApiError, UnsupportedResponse
+from gcp_mcp.errors import (
+    BadArguments,
+    CredentialsUnavailable,
+    GcpApiError,
+    GcpUnreachable,
+    UnsupportedResponse,
+)
 from gcp_mcp.policy import REDACTED_FIELDS
 
 GLOBAL_PARAMS = frozenset(
@@ -135,17 +142,27 @@ class Gcp:
         read_method = self.registry.method(service, method, version)
         schemas = self.registry.service(service, read_method.version).schemas
         request = prepare(read_method, args or {}, body, self.limits, schemas)
-        headers = dict(await self.credentials.headers())
+        try:
+            headers = dict(await self.credentials.headers())
+        except (DefaultCredentialsError, RefreshError) as error:
+            raise CredentialsUnavailable() from error
         if request.body is not None:
             headers["content-type"] = "application/json"
-        response = await self.http.request(
-            request.method,
-            request.url,
-            params=request.query,
-            content=request.body,
-            headers=headers,
-            timeout=self.limits.request_timeout_s,
-        )
+        try:
+            response = await self.http.request(
+                request.method,
+                request.url,
+                params=request.query,
+                content=request.body,
+                headers=headers,
+                timeout=self.limits.request_timeout_s,
+            )
+        except httpx2.TimeoutException as error:
+            problem = "timed out before Google Cloud answered"
+            raise GcpUnreachable(read_method.service, problem) from error
+        except httpx2.TransportError as error:
+            problem = "failed on the network before Google Cloud answered"
+            raise GcpUnreachable(read_method.service, problem) from error
         if not response.is_success:
             raise parse_error(response.status_code, response.content)
         try:
@@ -196,16 +213,17 @@ def prepare(
         elif texts:
             problems.extend(_path_problems(param, texts[0]))
             path[name] = texts[0]
-    problems.extend(
-        f"missing required {name!r}"
-        for name, param in method.params.items()
-        if param.required and args.get(name) is None
-    )
+    missing = [
+        name for name, param in method.params.items() if param.required and args.get(name) is None
+    ]
+    problems.extend(f"missing required {name!r}" for name in missing)
+    accepted = ", ".join(sorted([*method.params, FIELDS.name]))
     if unknown:
-        accepted = ", ".join(sorted([*method.params, FIELDS.name]))
         problems.append(
             f"unknown {', '.join(map(repr, unknown))}; the accepted names are {accepted}"
         )
+    elif missing:
+        problems.append(f"the accepted names are {accepted}")
     content = None
     if body and not method.accepts_body:
         problems.append(f"{method.name} is a {method.http_method} method and takes no request body")
