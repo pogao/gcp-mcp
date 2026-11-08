@@ -28,6 +28,7 @@ module-root = ""
 
 [dependency-groups]
 dev = [
+    "httpx2>=2.14.0",
     "pytest>=9.2",
     "ruff>=0.17",
 ]
