@@ -1,16 +1,21 @@
 from typing import Any
 
+import google.auth.exceptions
 import httpx2
 import pytest
 from fastmcp import Client, FastMCP
 from fastmcp.exceptions import ToolError
 
 from gcp_mcp.discovery import Registry
-from gcp_mcp.rest import Gcp, Limits, StaticCredentials
+from gcp_mcp.rest import CredentialSource, Gcp, Limits, StaticCredentials
 from gcp_mcp.tools import make_tools, read_only_tool
 
 REGISTRY = Registry()
 LIMITS = Limits(default_page_size=100, max_response_bytes=100_000, request_timeout_s=30.0)
+VM = {"project": "example-project", "zone": "us-central1-a", "instance": "vm-1"}
+AGGREGATED = (
+    "https://compute.googleapis.com/compute/v1/projects/example-project/aggregated/instances"
+)
 
 
 @pytest.fixture
@@ -19,17 +24,35 @@ def anyio_backend() -> str:
 
 
 class Google:
-    def __init__(self, response: httpx2.Response | None = None) -> None:
+    def __init__(
+        self,
+        response: httpx2.Response | Exception | None = None,
+        *,
+        limits: Limits = LIMITS,
+        credentials: CredentialSource | None = None,
+    ) -> None:
         self.response = response or httpx2.Response(200, json={})
+        self.limits = limits
+        self.credentials = credentials or StaticCredentials("example-token")
         self.requests: list[httpx2.Request] = []
 
     def __call__(self, request: httpx2.Request) -> httpx2.Response:
         self.requests.append(request)
+        if isinstance(self.response, Exception):
+            raise self.response
         return self.response
 
-    def gcp(self, limits: Limits = LIMITS) -> Gcp:
+    def gcp(self) -> Gcp:
         http = httpx2.AsyncClient(transport=httpx2.MockTransport(self))
-        return Gcp(REGISTRY, limits, StaticCredentials("example-token"), http)
+        return Gcp(REGISTRY, self.limits, self.credentials, http)
+
+
+class BrokenCredentials:
+    def __init__(self, error: Exception) -> None:
+        self.error = error
+
+    async def headers(self) -> dict[str, str]:
+        raise self.error
 
 
 def serve(gcp: Gcp) -> FastMCP:
@@ -170,3 +193,153 @@ async def test_describing_a_refused_method_says_the_server_is_read_only() -> Non
         "gcp_describe_method", {"service": "compute", "method": "instances.delete"}
     )
     assert "read-only" in text
+
+
+@pytest.mark.anyio
+async def test_call_sends_one_get_and_returns_the_page_with_a_paging_hint() -> None:
+    answer = {
+        "items": {"zones/us-central1-a": {"instances": [{"name": "vm-1"}]}},
+        "nextPageToken": "next",
+    }
+    google = Google(httpx2.Response(200, json=answer))
+    args = {"project": "example-project"}
+    result = await call(
+        "gcp_call",
+        {"service": "compute", "method": "instances.aggregatedList", "args": args},
+        google,
+    )
+    [request] = google.requests
+    assert request.method == "GET"
+    assert str(request.url) == f"{AGGREGATED}?alt=json&prettyPrint=false&maxResults=100"
+    assert result["response"] == answer
+    assert (result["service"], result["version"], result["method"]) == (
+        "compute",
+        "v1",
+        "instances.aggregatedList",
+    )
+    assert result["next_page_token"] == "next"
+    assert (result["truncated"], result["omitted_items"], result["redacted_fields"]) == (
+        False,
+        0,
+        0,
+    )
+    assert "pageToken" in result["hint"]
+    assert "args" in result["hint"]
+
+
+@pytest.mark.anyio
+async def test_a_complete_answer_has_no_hint() -> None:
+    google = Google(httpx2.Response(200, json={"name": "vm-1"}))
+    result = await call(
+        "gcp_call", {"service": "compute", "method": "instances.get", "args": VM}, google
+    )
+    assert result["response"] == {"name": "vm-1"}
+    assert "hint" not in result
+
+
+@pytest.mark.anyio
+async def test_a_post_read_sends_the_body_and_says_the_page_token_goes_in_the_body() -> None:
+    answer = {"entries": [{"logName": "projects/example-project/logs/a"}], "nextPageToken": "next"}
+    google = Google(httpx2.Response(200, json=answer))
+    body = {"resourceNames": ["projects/example-project"]}
+    result = await call(
+        "gcp_call", {"service": "logging", "method": "entries.list", "body": body}, google
+    )
+    [request] = google.requests
+    assert request.method == "POST"
+    assert result["next_page_token"] == "next"
+    assert "pageToken" in result["hint"]
+    assert "body" in result["hint"]
+
+
+@pytest.mark.anyio
+async def test_a_truncated_answer_hints_at_fields_and_the_page_size() -> None:
+    answer = {"items": [{"name": f"vm-{n}"} for n in range(100)], "nextPageToken": "next"}
+    limits = Limits(default_page_size=100, max_response_bytes=500, request_timeout_s=30.0)
+    google = Google(httpx2.Response(200, json=answer), limits=limits)
+    args = {"project": "example-project"}
+    result = await call(
+        "gcp_call",
+        {"service": "compute", "method": "instances.aggregatedList", "args": args},
+        google,
+    )
+    assert result["truncated"] is True
+    assert result["omitted_items"] > 0
+    for word in ("fields", "maxResults", "pageToken"):
+        assert word in result["hint"]
+
+
+@pytest.mark.anyio
+async def test_credential_shaped_fields_arrive_redacted_with_a_hint() -> None:
+    google = Google(httpx2.Response(200, json={"name": "vm-1", "password": "example"}))
+    result = await call(
+        "gcp_call", {"service": "compute", "method": "instances.get", "args": VM}, google
+    )
+    assert result["response"] == {"name": "vm-1", "password": "[redacted]"}
+    assert result["redacted_fields"] == 1
+    assert "redacted" in result["hint"]
+
+
+@pytest.mark.anyio
+async def test_a_refused_method_is_a_read_only_tool_error_and_sends_nothing() -> None:
+    google = Google()
+    text = await refusal(
+        "gcp_call", {"service": "compute", "method": "instances.delete", "args": VM}, google
+    )
+    assert "read-only" in text
+    assert google.requests == []
+
+
+@pytest.mark.anyio
+async def test_a_missing_required_param_is_a_tool_error_with_the_accepted_names() -> None:
+    google = Google()
+    args = {"project": "example-project", "zone": "us-central1-a"}
+    text = await refusal(
+        "gcp_call", {"service": "compute", "method": "instances.get", "args": args}, google
+    )
+    assert "'instance'" in text
+    assert "fields, instance, project, zone" in text
+    assert google.requests == []
+
+
+@pytest.mark.anyio
+@pytest.mark.parametrize(
+    "error", [httpx2.ConnectTimeout("timed out"), httpx2.ConnectError("refused")]
+)
+async def test_a_network_failure_is_a_tool_error_that_says_to_retry(error: Exception) -> None:
+    text = await refusal(
+        "gcp_call", {"service": "compute", "method": "instances.get", "args": VM}, Google(error)
+    )
+    assert "compute" in text
+    assert "retry" in text.lower()
+
+
+@pytest.mark.anyio
+@pytest.mark.parametrize(
+    "error",
+    [
+        google.auth.exceptions.DefaultCredentialsError("no credentials"),
+        google.auth.exceptions.RefreshError("expired"),
+    ],
+)
+async def test_missing_server_credentials_tell_the_operator_to_log_in(error: Exception) -> None:
+    server = Google(credentials=BrokenCredentials(error))
+    text = await refusal(
+        "gcp_call", {"service": "compute", "method": "instances.get", "args": VM}, server
+    )
+    assert "gcloud auth application-default login" in text
+    assert "operator" in text
+    assert server.requests == []
+
+
+@pytest.mark.anyio
+async def test_a_403_is_a_tool_error_about_the_server_identity() -> None:
+    envelope = {
+        "error": {"code": 403, "message": "Permission denied", "status": "PERMISSION_DENIED"}
+    }
+    google = Google(httpx2.Response(403, json=envelope))
+    text = await refusal(
+        "gcp_call", {"service": "compute", "method": "instances.get", "args": VM}, google
+    )
+    assert "PERMISSION_DENIED" in text
+    assert "identity" in text
