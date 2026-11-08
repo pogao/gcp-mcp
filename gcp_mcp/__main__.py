@@ -3,6 +3,7 @@ import sys
 
 import structlog
 from pydantic import ValidationError
+from pydantic_core import ErrorDetails
 from pydantic_settings import CliApp
 
 from gcp_mcp.server import build_server, serve
@@ -24,11 +25,12 @@ def main(argv: list[str] | None = None) -> int:
 
 
 def invalid_settings(error: ValidationError) -> str:
-    problems = (
-        f"{'.'.join(str(part) for part in problem['loc'])}: {problem['msg']}"
-        for problem in error.errors()
-    )
-    return "gcp-mcp: invalid settings: " + "; ".join(problems)
+    return "gcp-mcp: invalid settings: " + "; ".join(map(describe, error.errors()))
+
+
+def describe(problem: ErrorDetails) -> str:
+    location = ".".join(str(part) for part in problem["loc"])
+    return f"{location}: {problem['msg']}" if location else problem["msg"]
 
 
 def configure_logging(level: str) -> None:
@@ -51,6 +53,10 @@ def configure_logging(level: str) -> None:
         )
     )
     logging.basicConfig(handlers=[handler], level=level, force=True)
+    fastmcp_logger = logging.getLogger("fastmcp")
+    fastmcp_logger.handlers.clear()
+    fastmcp_logger.setLevel(logging.NOTSET)
+    fastmcp_logger.propagate = True
 
 
 if __name__ == "__main__":
