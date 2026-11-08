@@ -93,11 +93,6 @@ READ_VERBS = frozenset(
         "export",
         "validate",
         "compute",
-        "estimate",
-        "simulate",
-        "preview",
-        "aggregated",
-        "batch",
         "aggregate",
         "enumerate",
         "explain",
@@ -105,7 +100,18 @@ READ_VERBS = frozenset(
     }
 )
 
-READ_IDIOMS = frozenset({"aggregatedList", "batchGet", "testIamPermissions"})
+READ_IDIOMS = frozenset(
+    {
+        "aggregated",
+        "aggregatedList",
+        "batchGet",
+        "batchGetAssetsHistory",
+        "batchGetDocumentsMetadata",
+        "batchGetStats",
+        "batchRead",
+        "testIamPermissions",
+    }
+)
 
 READ_NAMES = frozenset(
     {
