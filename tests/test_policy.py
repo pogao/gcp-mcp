@@ -180,6 +180,7 @@ KNOWN_READS = (
     "cloudasset.analyzeIamPolicy",
     "container.projects.locations.clusters.list",
     "firestore.projects.databases.documents.runQuery",
+    "datastore.projects.runQuery",
     "secretmanager.projects.secrets.list",
 )
 
