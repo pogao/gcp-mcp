@@ -547,6 +547,7 @@ name = "gcp-mcp"
 version = "0.1.0"
 source = { editable = "." }
 dependencies = [
+    { name = "cryptography" },
     { name = "fastapi" },
     { name = "fastmcp" },
     { name = "google-cloud-compute" },
@@ -561,12 +562,14 @@ dependencies = [
 [package.dev-dependencies]
 dev = [
     { name = "httpx2" },
+    { name = "joserfc" },
     { name = "pytest" },
     { name = "ruff" },
 ]
 
 [package.metadata]
 requires-dist = [
+    { name = "cryptography", specifier = ">=50.0.2" },
     { name = "fastapi", specifier = ">=0.146.0" },
     { name = "fastmcp", specifier = ">=4.1.6" },
     { name = "google-cloud-compute", specifier = ">=1.56.0" },
@@ -581,6 +584,7 @@ requires-dist = [
 [package.metadata.requires-dev]
 dev = [
     { name = "httpx2", specifier = ">=2.14.0" },
+    { name = "joserfc", specifier = ">=1.8.0" },
     { name = "pytest", specifier = ">=9.2" },
     { name = "ruff", specifier = ">=0.17" },
 ]
