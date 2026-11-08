@@ -1,15 +1,18 @@
 from typing import Any
 
+import google.auth
 import google.auth.exceptions
 import httpx2
 import pytest
-from fastmcp import Client, FastMCP
+from fastmcp import Client
 from fastmcp.exceptions import ToolError
 
 from gcp_mcp.discovery import Registry
 from gcp_mcp.rest import CredentialSource, Gcp, Limits, StaticCredentials
-from gcp_mcp.tools import make_tools, read_only_tool
+from gcp_mcp.server import build_server
+from gcp_mcp.settings import Settings
 
+GENERIC_TOOLS = ("gcp_services", "gcp_methods", "gcp_describe_method", "gcp_call")
 REGISTRY = Registry()
 LIMITS = Limits(default_page_size=100, max_response_bytes=100_000, request_timeout_s=30.0)
 VM = {"project": "example-project", "zone": "us-central1-a", "instance": "vm-1"}
@@ -55,16 +58,9 @@ class BrokenCredentials:
         raise self.error
 
 
-def serve(gcp: Gcp) -> FastMCP:
-    server = FastMCP("test")
-    for tool in make_tools(gcp):
-        read_only_tool(server, tool)
-    return server
-
-
 async def call(name: str, arguments: dict[str, Any], google: Google | None = None) -> Any:
     gcp = (google or Google()).gcp()
-    async with Client(serve(gcp)) as client:
+    async with Client(build_server(Settings(), gcp=gcp)) as client:
         result = await client.call_tool(name, arguments)
     return result.structured_content
 
@@ -73,6 +69,51 @@ async def refusal(name: str, arguments: dict[str, Any], google: Google | None = 
     with pytest.raises(ToolError) as caught:
         await call(name, arguments, google)
     return str(caught.value)
+
+
+@pytest.mark.anyio
+async def test_the_generic_tools_come_first_and_every_tool_is_read_only() -> None:
+    async with Client(build_server(Settings(), gcp=Google().gcp())) as client:
+        tools = await client.list_tools()
+    assert tuple(tool.name for tool in tools[:4]) == GENERIC_TOOLS
+    for tool in tools:
+        assert tool.annotations.read_only_hint is True
+        assert tool.annotations.destructive_hint is False
+        assert tool.annotations.idempotent_hint is True
+        assert tool.annotations.open_world_hint is True
+
+
+@pytest.mark.anyio
+async def test_the_instructions_name_the_four_step_workflow() -> None:
+    async with Client(build_server(Settings(), gcp=Google().gcp())) as client:
+        instructions = client.initialize_result.instructions
+    positions = [instructions.index(name) for name in GENERIC_TOOLS]
+    assert positions == sorted(positions)
+    for word in ("read-only", "fields", "pageToken", "redacted"):
+        assert word in instructions
+
+
+@pytest.mark.anyio
+async def test_a_server_built_from_settings_reads_credentials_only_on_the_first_call(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    lookups = []
+
+    def default(scopes: list[str]) -> None:
+        lookups.append(scopes)
+        raise google.auth.exceptions.DefaultCredentialsError("no credentials")
+
+    monkeypatch.setattr(google.auth, "default", default)
+    async with Client(build_server(Settings())) as client:
+        services = await client.call_tool("gcp_services", {"query": "compute"})
+        assert lookups == []
+        with pytest.raises(ToolError) as caught:
+            await client.call_tool(
+                "gcp_call", {"service": "compute", "method": "instances.get", "args": VM}
+            )
+    assert "compute" in [service["name"] for service in services.structured_content["services"]]
+    assert "gcloud auth application-default login" in str(caught.value)
+    assert len(lookups) == 1
 
 
 @pytest.mark.anyio
