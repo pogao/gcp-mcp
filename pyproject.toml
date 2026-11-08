@@ -13,6 +13,7 @@ dependencies = [
     "structlog>=26.1.0",
     "google-cloud-storage>=3.17.1",
     "google-cloud-resource-manager>=1.19.0",
+    "google-api-python-client>=2.201.0",
     "pydantic-settings>=2.16.0",
 ]
 
