@@ -1,3 +1,4 @@
+import json
 import logging
 
 import pytest
@@ -65,3 +66,16 @@ def test_scopes_in_the_environment_are_a_comma_separated_list(monkeypatch, resto
 
     assert main([*HTTP_AUTH_ARGV, "--auth-jwks-uri", "https://issuer.example.com/jwks"]) == 0
     assert served[0].auth.required_scopes == ("gcp:read", "gcp:admin")
+
+
+def test_fastmcp_log_records_reach_stderr_as_json_when_serving(
+    monkeypatch, restored_loggers, capsys
+):
+    def fake_serve(server, config):
+        logging.getLogger("fastmcp.server.auth.providers.jwt").warning("Bearer token rejected")
+
+    monkeypatch.setattr("gcp_mcp.__main__.serve", fake_serve)
+
+    assert main([]) == 0
+    lines = [json.loads(line) for line in capsys.readouterr().err.splitlines()]
+    assert {"event": "Bearer token rejected", "level": "warning"}.items() <= lines[-1].items()
