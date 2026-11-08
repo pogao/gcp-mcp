@@ -16,6 +16,9 @@ dependencies = [
     "google-api-python-client>=2.201.0",
     "pydantic-settings>=2.16.0",
     "cryptography>=50.0.2",
+    "httpx2>=2.14.0",
+    "google-auth[requests]>=2.62.0",
+    "uritemplate>=4.2.0",
 ]
 
 [project.scripts]
@@ -30,7 +33,6 @@ module-root = ""
 
 [dependency-groups]
 dev = [
-    "httpx2>=2.14.0",
     "joserfc>=1.8.0",
     "pytest>=9.2",
     "ruff>=0.17",
