@@ -600,4 +600,4 @@ def test_known_reads_are_admitted(
 
 
 def test_golden_file_pins_admitted_posts_and_refused_gets() -> None:
-    assert golden.main(["--check"]) == 0
+    assert golden.main(["--check", "policy.json"]) == 0
