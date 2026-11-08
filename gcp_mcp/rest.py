@@ -185,6 +185,10 @@ class Gcp:
         )
 
 
+def make_gcp(limits: Limits) -> Gcp:
+    return Gcp(Registry(), limits, AdcCredentials(), httpx2.AsyncClient())
+
+
 def prepare(
     method: ReadMethod,
     args: Mapping[str, object],

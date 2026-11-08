@@ -86,7 +86,7 @@ async def test_the_generic_tools_come_first_and_every_tool_is_read_only() -> Non
 @pytest.mark.anyio
 async def test_the_instructions_name_the_four_step_workflow() -> None:
     async with Client(build_server(Settings(), gcp=Google().gcp())) as client:
-        instructions = client.initialize_result.instructions
+        instructions = client.instructions
     positions = [instructions.index(name) for name in GENERIC_TOOLS]
     assert positions == sorted(positions)
     for word in ("read-only", "fields", "pageToken", "redacted"):
