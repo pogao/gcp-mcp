@@ -125,6 +125,7 @@ KNOWN_WRITES = (
     "retail.projects.locations.catalogs.servingConfigs.search",
     "retail.projects.locations.catalogs.placements.search",
     "dialogflow.projects.locations.suggestions.searchKnowledge",
+    "contentwarehouse.projects.locations.documents.search",
 )
 
 KNOWN_SECRETS = (
