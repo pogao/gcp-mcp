@@ -1,12 +1,13 @@
 import re
 from collections import defaultdict
-from collections.abc import Mapping
+from collections.abc import Iterator, Mapping
+from typing import Any
 
 import pytest
 
 from gcp_mcp.policy import DENY, REDACTED_FIELDS, Admitted, Excluded, admit, verb
 from scripts import golden
-from tests.corpus import CorpusMethod, bundled_methods
+from tests.corpus import CorpusMethod, bundled_documents, bundled_methods
 
 GET_NOT_A_READ = "GET whose name is not a read verb; some GET methods mutate"
 SECRETS = "reveals credentials or secrets"
@@ -60,10 +61,37 @@ POST_READ_NAME = re.compile(
     r"|(runQuery|runAggregationQuery|batchGet|troubleshoot|testIamPermissions)$"
 )
 
-SECRET_WORDS = re.compile(
-    r"(?i)secret|credential|password|token|signed|downloadurl|authinfo|authstring|keystring"
-    r"|privatekey|authorizationcode|verificationcode"
+CREDENTIAL_NOUNS = frozenset(
+    {"secret", "password", "passwords", "passwd", "passphrase", "credential", "jwt", "psk", "pin"}
+    | {"cak", "hmac", "otp"}
 )
+KEY_KINDS = frozenset(
+    """
+    private api client consumer signer shared webhook secret access account activation pairing
+    hmac raw master license
+    """.split()
+)
+TOKEN_KINDS = frozenset(
+    """
+    access refresh auth authentication authorization bearer id oauth security session sas
+    activation enrollment migration registration api debug verification
+    """.split()
+)
+WRAPPER_WORDS = frozenset({"data", "file", "value", "pem", "text"})
+OUTPUT_ONLY_SECRET = re.compile(
+    r"(?i)\boutput only\.\s+(?:the\s+)?(?:(?!next|primary)[\w-]+\s+){0,3}"
+    r"(?:secret|password|token|key)(?:\s+value|\s+string|\s+in base64)?\."
+)
+CURSOR = re.compile(r"(?i)page_?token|next page|pagination")
+
+KNOWN_RESPONSE_SECRETS: Mapping[str, Mapping[str, str]] = {
+    "androidmanagement.enterprises.devices.get": {
+        "enrollmentTokenData": "data an admin attached to the token, not the token",
+    },
+    "androidmanagement.enterprises.devices.list": {
+        "devices.enrollmentTokenData": "data an admin attached to the token, not the token",
+    },
+}
 
 KNOWN_WRITES = (
     "compute.instances.insert",
@@ -320,6 +348,24 @@ def test_verb(method_id: str, expected: str) -> None:
         "refreshToken",
         "authToken",
         "bearerToken",
+        "token",
+        "pin",
+        "passphrase",
+        "secretValue",
+        "privateKeyData",
+        "serviceAccountKeyFile",
+        "apiKey",
+        "apiKeys",
+        "consumerKey",
+        "secretAccessKey",
+        "generatedActivationKey",
+        "pairingKey",
+        "rawKey",
+        "signerKey",
+        "jwt",
+        "sasToken",
+        "signinEnrollmentToken",
+        "thirdPartyAuthenticationTokens",
     ],
 )
 def test_redacted_fields_match_credential_values(field: str) -> None:
@@ -340,6 +386,10 @@ def test_redacted_fields_match_credential_values(field: str) -> None:
         "publicKey",
         "kmsKeyName",
         "credentialType",
+        "tokens",
+        "apiKeyId",
+        "preSharedKeys",
+        "secrets",
     ],
 )
 def test_redacted_fields_spare_cursors_references_and_hashes(field: str) -> None:
@@ -350,8 +400,64 @@ def last_segment(method: CorpusMethod) -> str:
     return method.id.rpartition(".")[2]
 
 
-def words(name: str) -> set[str]:
-    return {word.lower() for word in re.findall(r"[A-Z]?[a-z]+|[A-Z]+(?![a-z])", name)}
+def words(name: str) -> list[str]:
+    return [word.lower() for word in re.findall(r"[A-Z]?[a-z]+|[A-Z]+(?![a-z])", name)]
+
+
+def names_credential(field: str) -> bool:
+    found = words(field)
+    while len(found) > 1 and found[-1] in WRAPPER_WORDS:
+        found.pop()
+    if not found:
+        return False
+    head, kind = found[-1], found[-2] if len(found) > 1 else ""
+    if head in ("key", "keys"):
+        return kind in KEY_KINDS
+    if head in ("token", "tokens"):
+        return kind in TOKEN_KINDS or found == ["token"]
+    if head == "string":
+        return kind in ("auth", "key")
+    return head in CREDENTIAL_NOUNS
+
+
+def holds_text(prop: Mapping[str, Any]) -> bool:
+    if "enum" in prop:
+        return False
+    if prop.get("type") == "string":
+        return prop.get("format") in (None, "byte")
+    if prop.get("type") == "array":
+        return holds_text(prop.get("items", {}))
+    extra = prop.get("additionalProperties")
+    return isinstance(extra, dict) and holds_text(extra)
+
+
+def ref_of(prop: Mapping[str, Any]) -> str | None:
+    for candidate in (prop, prop.get("items", {}), prop.get("additionalProperties")):
+        if isinstance(candidate, dict) and "$ref" in candidate:
+            return candidate["$ref"]
+    return None
+
+
+def fields_of(
+    schemas: Mapping[str, Any], name: str, depth: int, path: str = "", seen: frozenset = frozenset()
+) -> Iterator[tuple[str, Mapping[str, Any]]]:
+    if name in seen:
+        return
+    for field, prop in schemas.get(name, {}).get("properties", {}).items():
+        here = f"{path}.{field}" if path else field
+        yield here, prop
+        ref = ref_of(prop)
+        if ref and depth > 1:
+            yield from fields_of(schemas, ref, depth - 1, here, seen | {name})
+
+
+def admitted_text_fields() -> Iterator[tuple[str, str, Mapping[str, Any]]]:
+    for schemas, methods in bundled_documents():
+        for method in methods:
+            if method.response_schema and isinstance(admit(*method), Admitted):
+                for path, prop in fields_of(schemas, method.response_schema, depth=3):
+                    if holds_text(prop):
+                        yield method.id, path, prop
 
 
 @pytest.fixture(scope="module")
@@ -398,12 +504,36 @@ def test_admitted_operations_are_polls(admitted: list[CorpusMethod]) -> None:
 def test_admitted_names_carry_no_write_word_beyond_the_reviewed_ones(
     admitted: list[CorpusMethod],
 ) -> None:
-    flagged = {method.id for method in admitted if WRITE_WORDS & words(last_segment(method))}
+    flagged = {
+        method.id for method in admitted if WRITE_WORDS.intersection(words(last_segment(method)))
+    }
     assert sorted(flagged) == sorted(REVIEWED_WRITE_WORDS)
 
 
-def test_admitted_names_reveal_no_secret(admitted: list[CorpusMethod]) -> None:
-    assert [method.id for method in admitted if SECRET_WORDS.search(last_segment(method))] == []
+def test_admitted_responses_redact_every_credential_field() -> None:
+    unredacted = {
+        (method_id, path)
+        for method_id, path, prop in admitted_text_fields()
+        if (
+            names_credential(path.rpartition(".")[2])
+            or OUTPUT_ONLY_SECRET.search(prop.get("description", ""))
+        )
+        and not any(REDACTED_FIELDS.search(field) for field in path.split("."))
+    }
+    reviewed = {
+        (method_id, path) for method_id, paths in KNOWN_RESPONSE_SECRETS.items() for path in paths
+    }
+    assert sorted(unredacted) == sorted(reviewed)
+
+
+def test_redaction_spares_every_pagination_cursor() -> None:
+    cursors = {
+        path.rpartition(".")[2]
+        for _, path, prop in admitted_text_fields()
+        if CURSOR.search(f"{path.rpartition('.')[2]} {prop.get('description', '')}")
+    }
+    assert "nextPageToken" in cursors
+    assert sorted(field for field in cursors if REDACTED_FIELDS.search(field)) == []
 
 
 @pytest.mark.parametrize("method_id", KNOWN_WRITES + KNOWN_SECRETS)
