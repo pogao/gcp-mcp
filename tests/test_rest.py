@@ -4,7 +4,7 @@ import pytest
 
 from gcp_mcp.discovery import CLOUD_PLATFORM_SCOPE, ReadMethod, Registry, parse_service
 from gcp_mcp.errors import BadArguments
-from gcp_mcp.rest import Limits, PreparedRequest, prepare
+from gcp_mcp.rest import Limits, PreparedRequest, bound, prepare, redact
 
 REGISTRY = Registry()
 LIMITS = Limits(default_page_size=100, max_response_bytes=100_000, request_timeout_s=30.0)
@@ -399,3 +399,114 @@ def test_every_problem_is_reported_at_once() -> None:
 )
 def test_values_of_the_wrong_type_are_refused(args: dict, name: str) -> None:
     assert name in problems("compute", "instances.aggregatedList", "v1", args)
+
+
+def compact(payload: object) -> str:
+    return json.dumps(payload, separators=(",", ":"))
+
+
+def test_bound_leaves_a_payload_that_fits_alone() -> None:
+    payload = {"items": ["xxxxxxxxxx"] * 3, "nextPageToken": "cursor"}
+    assert bound(payload, 100) == (payload, 0)
+
+
+def test_bound_pops_trailing_items_until_the_compact_json_fits() -> None:
+    items = [f"item-{number:04}" for number in range(100)]
+    kept = max(
+        count
+        for count in range(len(items) + 1)
+        if len(compact({"items": items[:count], "nextPageToken": "cursor"})) <= 500
+    )
+    trimmed, omitted = bound({"items": items, "nextPageToken": "cursor"}, 500)
+    assert trimmed == {"items": items[:kept], "nextPageToken": "cursor"}
+    assert omitted == len(items) - kept
+
+
+def test_bound_keeps_the_largest_count_that_fits() -> None:
+    trimmed, omitted = bound({"items": ["xxxxxxxxxx"] * 100}, 500)
+    assert (len(trimmed["items"]), omitted) == (37, 63)
+    assert len(compact(trimmed)) == 492
+
+
+def test_bound_does_not_change_its_input() -> None:
+    payload = {"items": ["xxxxxxxxxx"] * 100}
+    bound(payload, 500)
+    assert len(payload["items"]) == 100
+
+
+def test_bound_trims_the_largest_nested_list_first() -> None:
+    payload = {
+        "items": {
+            "zones/us-central1-a": {"instances": [{"name": f"vm-{n}"} for n in range(20)]},
+            "zones/us-central1-b": {"instances": [{"name": "vm-b"}]},
+        },
+        "warnings": ["w"],
+    }
+    trimmed, omitted = bound(payload, len(compact(payload)) - 1)
+    zones = trimmed["items"]
+    assert [vm["name"] for vm in zones["zones/us-central1-a"]["instances"]] == [
+        f"vm-{n}" for n in range(19)
+    ]
+    assert zones["zones/us-central1-b"]["instances"] == [{"name": "vm-b"}]
+    assert trimmed["warnings"] == ["w"]
+    assert omitted == 1
+
+
+def test_bound_spreads_trimming_across_lists_of_equal_length() -> None:
+    payload = {"a": ["xxxxxxxxxx"] * 10, "b": ["yyyyyyyyyy"] * 10}
+    trimmed, omitted = bound(payload, len(compact(payload)) - 100)
+    assert abs(len(trimmed["a"]) - len(trimmed["b"])) <= 1
+    assert omitted == 20 - len(trimmed["a"]) - len(trimmed["b"])
+    assert len(compact(trimmed)) <= len(compact(payload)) - 100
+
+
+def test_bound_returns_a_payload_without_lists_unchanged() -> None:
+    payload = {"description": "x" * 1000}
+    assert bound(payload, 100) == (payload, 0)
+
+
+def test_redact_replaces_secrets_and_keeps_pagination_cursors() -> None:
+    payload = {
+        "nextPageToken": "cursor-1",
+        "nextSyncToken": "cursor-2",
+        "pageToken": "cursor-3",
+        "items": [{"config": {"database": {"password": "example-password", "user": "admin"}}}],
+    }
+    redacted, count = redact(payload)
+    assert redacted == {
+        "nextPageToken": "cursor-1",
+        "nextSyncToken": "cursor-2",
+        "pageToken": "cursor-3",
+        "items": [{"config": {"database": {"password": "[redacted]", "user": "admin"}}}],
+    }
+    assert count == 1
+
+
+def test_redact_replaces_objects_and_lists_whole_and_keeps_flags() -> None:
+    payload = {
+        "pairingKey": {"key": "example-key", "expireTime": "2026-01-01T00:00:00Z"},
+        "apiKeys": ["example-key-1", "example-key-2"],
+        "masterAuth": {"clientKey": "example-client-key", "clusterCaCertificate": "PEM"},
+        "allowCredentials": True,
+        "secret": 3,
+        "password": None,
+    }
+    redacted, count = redact(payload)
+    assert redacted == {
+        "pairingKey": "[redacted]",
+        "apiKeys": "[redacted]",
+        "masterAuth": {"clientKey": "[redacted]", "clusterCaCertificate": "PEM"},
+        "allowCredentials": True,
+        "secret": 3,
+        "password": None,
+    }
+    assert count == 3
+
+
+def test_redact_counts_every_secret_in_a_list() -> None:
+    payload = {"items": [{"privateKey": "example-1"}, {"privateKey": "example-2"}, {"name": "x"}]}
+    redacted, count = redact(payload)
+    assert redacted == {
+        "items": [{"privateKey": "[redacted]"}, {"privateKey": "[redacted]"}, {"name": "x"}]
+    }
+    assert count == 2
