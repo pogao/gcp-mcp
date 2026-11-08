@@ -4,7 +4,7 @@ from collections.abc import Mapping
 
 import pytest
 
-from gcp_mcp.policy import DENY, Admitted, Excluded, admit, verb
+from gcp_mcp.policy import DENY, REDACTED_FIELDS, Admitted, Excluded, admit, verb
 from scripts import golden
 from tests.corpus import CorpusMethod, bundled_methods
 
@@ -298,6 +298,52 @@ def test_admit_refuses_what_it_does_not_recognize(args: tuple) -> None:
 )
 def test_verb(method_id: str, expected: str) -> None:
     assert verb(method_id) == expected
+
+
+@pytest.mark.parametrize(
+    "field",
+    [
+        "password",
+        "passwd",
+        "rootPassword",
+        "secret",
+        "clientSecret",
+        "consumerSecret",
+        "sharedSecret",
+        "privateKey",
+        "clientKey",
+        "credential",
+        "decryptedCredential",
+        "authString",
+        "keyString",
+        "accessToken",
+        "refreshToken",
+        "authToken",
+        "bearerToken",
+    ],
+)
+def test_redacted_fields_match_credential_values(field: str) -> None:
+    assert REDACTED_FIELDS.search(field)
+
+
+@pytest.mark.parametrize(
+    "field",
+    [
+        "pageToken",
+        "nextPageToken",
+        "nextSyncToken",
+        "etag",
+        "fingerprint",
+        "secretVersion",
+        "passwordSecretVersion",
+        "clientSecretSha256",
+        "publicKey",
+        "kmsKeyName",
+        "credentialType",
+    ],
+)
+def test_redacted_fields_spare_cursors_references_and_hashes(field: str) -> None:
+    assert not REDACTED_FIELDS.search(field)
 
 
 def last_segment(method: CorpusMethod) -> str:
