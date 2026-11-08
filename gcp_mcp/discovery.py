@@ -191,7 +191,6 @@ def parse_service(doc: Mapping[str, Any]) -> ServiceSpec:
         if isinstance(verdict, Excluded):
             excluded[name] = verdict.reason
             continue
-        params = _params(raw.get("parameters", {}), raw["path"])
         methods[name] = ReadMethod(
             service=service,
             version=version,
@@ -199,7 +198,7 @@ def parse_service(doc: Mapping[str, Any]) -> ServiceSpec:
             http_method=raw["httpMethod"],
             base_url=base_url,
             path_template=raw["path"],
-            params=params,
+            params=_params(raw.get("parameters", {}), raw["path"]),
             accepts_body=verdict.accepts_body,
             body_schema=raw.get("request", {}).get("$ref"),
             response_schema=raw.get("response", {}).get("$ref"),

@@ -24,7 +24,7 @@ def compute() -> ServiceSpec:
 
 
 @pytest.fixture(scope="module")
-def logging() -> ServiceSpec:
+def logging_v2() -> ServiceSpec:
     return parse_service(CORPUS.load("logging", "v2"))
 
 
@@ -186,8 +186,10 @@ def test_parse_service_records_enum_repeated_and_reserved_params(compute: Servic
     assert parent.pattern.fullmatch("reservations/r1/reservationBlocks/b1")
 
 
-def test_parse_service_builds_a_post_read_that_pages_in_the_body(logging: ServiceSpec) -> None:
-    entries = logging.methods["entries.list"]
+def test_parse_service_builds_a_post_read_that_pages_in_the_body(
+    logging_v2: ServiceSpec,
+) -> None:
+    entries = logging_v2.methods["entries.list"]
     assert entries.http_method == "POST"
     assert entries.base_url == "https://logging.googleapis.com/"
     assert entries.path_template == "v2/entries:list"
@@ -197,8 +199,8 @@ def test_parse_service_builds_a_post_read_that_pages_in_the_body(logging: Servic
     assert entries.pagination == Pagination(
         token_param="pageToken", size_param="pageSize", size_max=None, in_body=True
     )
-    assert logging.methods["projects.logs.list"].params["resourceNames"].repeated is True
-    assert logging.methods["getCmekSettings"].params["name"].reserved is True
+    assert logging_v2.methods["projects.logs.list"].params["resourceNames"].repeated is True
+    assert logging_v2.methods["getCmekSettings"].params["name"].reserved is True
 
 
 def test_parse_service_strips_the_id_prefix_even_when_it_is_not_the_service_name() -> None:
