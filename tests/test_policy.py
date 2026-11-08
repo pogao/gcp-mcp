@@ -62,7 +62,9 @@ POST_READ_NAME = re.compile(
 )
 
 CREDENTIAL_NOUNS = frozenset(
-    "secret password passwords passwd passphrase credential jwt psk pin cak hmac otp".split()
+    """
+    secret password passwords passwd passphrase credential credentials jwt psk pin cak hmac otp
+    """.split()
 )
 KEY_KINDS = frozenset(
     """
@@ -161,6 +163,11 @@ KNOWN_SECRETS = (
     "apigee.organizations.environments.keyvaluemaps.entries.list",
     "apigee.organizations.apis.keyvaluemaps.entries.get",
     "recommendationengine.projects.locations.catalogs.eventStores.predictionApiKeyRegistrations.list",
+    *(
+        f"walletobjects.{kind}object.{verb}"
+        for kind in "eventticket flight generic giftcard loyalty offer transit".split()
+        for verb in ("get", "list")
+    ),
 )
 
 KNOWN_READS = (
@@ -341,6 +348,7 @@ def test_verb(method_id: str, expected: str) -> None:
         "privateKey",
         "clientKey",
         "credential",
+        "credentials",
         "decryptedCredential",
         "authString",
         "keyString",
@@ -348,6 +356,7 @@ def test_verb(method_id: str, expected: str) -> None:
         "refreshToken",
         "authToken",
         "bearerToken",
+        "httpAuthorizationToken",
         "token",
         "pin",
         "passphrase",
@@ -378,6 +387,14 @@ def test_redacted_fields_match_credential_values(field: str) -> None:
         "pageToken",
         "nextPageToken",
         "nextSyncToken",
+        "newStartPageToken",
+        "prevPageToken",
+        "previousPageToken",
+        "syncToken",
+        "tokenPagination",
+        "matchedTokenPageIndices",
+        "newVersionToken",
+        "nextWaitToken",
         "etag",
         "fingerprint",
         "secretVersion",
@@ -439,7 +456,7 @@ def ref_of(prop: Mapping[str, Any]) -> str | None:
 
 
 def fields_of(
-    schemas: Mapping[str, Any], name: str, depth: int, path: str = "", seen: frozenset = frozenset()
+    schemas: Mapping[str, Any], name: str, path: str = "", seen: frozenset = frozenset()
 ) -> Iterator[tuple[str, Mapping[str, Any]]]:
     if name in seen:
         return
@@ -447,15 +464,15 @@ def fields_of(
         here = f"{path}.{field}" if path else field
         yield here, prop
         ref = ref_of(prop)
-        if ref and depth > 1:
-            yield from fields_of(schemas, ref, depth - 1, here, seen | {name})
+        if ref:
+            yield from fields_of(schemas, ref, here, seen | {name})
 
 
 def admitted_text_fields() -> Iterator[tuple[str, str, Mapping[str, Any]]]:
     for schemas, methods in bundled_documents():
         for method in methods:
             if method.response_schema and isinstance(admit(*method), Admitted):
-                for path, prop in fields_of(schemas, method.response_schema, depth=3):
+                for path, prop in fields_of(schemas, method.response_schema):
                     if holds_text(prop):
                         yield method.id, path, prop
 
