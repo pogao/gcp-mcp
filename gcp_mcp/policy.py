@@ -84,14 +84,16 @@ SENSITIVE_IDS: tuple[re.Pattern[str], ...] = (
     # Apigee proxies keep credentials in key value maps.
     re.compile(r"^apigee\..*\.keyvaluemaps\.entries\.(get|list)$"),
     re.compile(r"^recommendationengine\..*\.predictionApiKeyRegistrations\.list$"),
+    # A rotating barcode carries the TOTP secret in a field named `key`.
+    re.compile(r"^walletobjects\..*object\.(get|list)$"),
 )
 
 REDACTED_FIELDS = re.compile(
-    r"(?i)(^pin|^token|password|passwd|passphrase|secret|secretvalue|credential"
+    r"(?i)(^pin|^token|password|passwd|passphrase|secret|secretvalue|credentials?"
     r"|privatekey(data|file)?|clientkey|consumerkey|accountkey(file)?|accesskey|activationkey"
     r"|pairingkey|presharedkey|rawkey|signerkey|webhookkey|apikeys?|authstring|keystring|psk|jwt"
-    r"|(access|refresh|auth|authentication|bearer|id|session|security|sas|activation"
-    r"|enrollment|migration)tokens?)$"
+    r"|(access|refresh|auth|authentication|authorization|bearer|id|session|security|sas"
+    r"|activation|enrollment|migration)tokens?)$"
 )
 
 LRO_RESPONSES = frozenset(
