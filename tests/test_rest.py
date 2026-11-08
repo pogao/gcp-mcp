@@ -1,5 +1,8 @@
 import json
+import re
 import threading
+from collections import deque
+from collections.abc import Iterator
 
 import google.auth
 import google.auth.credentials
@@ -395,6 +398,68 @@ def test_a_transaction_key_inside_a_free_form_struct_field_is_refused(key: str) 
     body = claims({"iss": "issuer", "ext": [{key: {}}]})
     text = problems("servicecontrol", "services.check", "v2", SERVICE_CHECK, body)
     assert repr(f"attributes.request.auth.claims.ext[0].{key}") in text
+
+
+TRANSACTION_FIELDS = (
+    "datastore.v1 projects.lookup readOptions.newTransaction",
+    "datastore.v1 projects.lookup readOptions.transaction",
+    "datastore.v1 projects.runAggregationQuery readOptions.newTransaction",
+    "datastore.v1 projects.runAggregationQuery readOptions.transaction",
+    "datastore.v1 projects.runQuery readOptions.newTransaction",
+    "datastore.v1 projects.runQuery readOptions.transaction",
+    "firestore.v1 projects.databases.documents.batchGet newTransaction",
+    "firestore.v1 projects.databases.documents.batchGet transaction",
+    "firestore.v1 projects.databases.documents.runAggregationQuery newTransaction",
+    "firestore.v1 projects.databases.documents.runAggregationQuery transaction",
+    "firestore.v1 projects.databases.documents.runQuery newTransaction",
+    "firestore.v1 projects.databases.documents.runQuery transaction",
+)
+
+
+def transaction_fields() -> Iterator[str]:
+    for service in REGISTRY.services():
+        spec = REGISTRY.service(service.name)
+        for name, method in spec.methods.items():
+            if not method.accepts_body:
+                continue
+            seen: set[str] = set()
+            queue = deque([("", {"$ref": method.body_schema})])
+            while queue:
+                path, schema = queue.popleft()
+                if (ref := schema.get("$ref")) is not None:
+                    if ref in seen:
+                        continue
+                    seen.add(ref)
+                    schema = spec.schemas[ref]
+                for key, field in schema.get("properties", {}).items():
+                    here = f"{path}.{key}" if path else key
+                    if "transaction" in key.replace("_", "").lower():
+                        yield f"{spec.name}.{spec.version} {name} {here}"
+                    else:
+                        queue.append((here, field))
+                for part in ("items", "additionalProperties"):
+                    if part in schema:
+                        queue.append((path, schema[part]))
+
+
+def test_every_request_field_named_for_a_transaction_is_pinned() -> None:
+    assert sorted(transaction_fields()) == list(TRANSACTION_FIELDS)
+
+
+def snake_case(name: str) -> str:
+    return re.sub("([A-Z])", r"_\1", name).lower()
+
+
+@pytest.mark.parametrize("spell", [str, snake_case], ids=["camelCase", "snake_case"])
+@pytest.mark.parametrize("field", TRANSACTION_FIELDS)
+def test_every_pinned_transaction_field_is_refused(field: str, spell) -> None:
+    service_version, method, path = field.split()
+    service, _, version = service_version.partition(".")
+    keys = [spell(key) for key in path.split(".")]
+    body: dict = {}
+    for key in reversed(keys):
+        body = {key: body}
+    assert repr(".".join(keys)) in problems(service, method, version, {}, body)
 
 
 def test_a_body_on_a_get_is_refused() -> None:
