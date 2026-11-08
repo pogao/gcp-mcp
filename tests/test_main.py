@@ -68,6 +68,23 @@ def test_scopes_in_the_environment_are_a_comma_separated_list(monkeypatch, resto
     assert served[0].auth.required_scopes == ("gcp:read", "gcp:admin")
 
 
+def test_a_json_list_of_scopes_in_the_environment_exits_with_code_2(monkeypatch, capsys):
+    monkeypatch.setattr("gcp_mcp.__main__.serve", lambda server, config: None)
+    monkeypatch.setenv("GCP_MCP_AUTH_REQUIRED_SCOPES", '["gcp:read"]')
+
+    assert main([*HTTP_AUTH_ARGV, "--auth-jwks-uri", "https://issuer.example.com/jwks"]) == 2
+    assert "auth_required_scopes" in (err := capsys.readouterr().err)
+    assert "comma-separated list" in err
+
+
+def test_empty_allowed_subject_entries_in_the_environment_exit_with_code_2(monkeypatch, capsys):
+    monkeypatch.setattr("gcp_mcp.__main__.serve", lambda server, config: None)
+    monkeypatch.setenv("GCP_MCP_AUTH_ALLOWED_SUBJECTS", ",,")
+
+    assert main([*HTTP_AUTH_ARGV, "--auth-jwks-uri", "https://issuer.example.com/jwks"]) == 2
+    assert "auth_allowed_subjects" in capsys.readouterr().err
+
+
 def test_fastmcp_log_records_reach_stderr_as_json_when_serving(
     monkeypatch, restored_loggers, capsys
 ):

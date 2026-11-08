@@ -56,12 +56,13 @@ def auth_provider(config: ServerConfig) -> RemoteAuthProvider | None:
         case StdioConfig() | HttpConfig(auth=None):
             return None
         case HttpConfig(auth=auth):
-            verifier = ExpiringJWTVerifier(
+            verifier = StrictJWTVerifier(
                 jwks_uri=auth.jwks_uri,
                 public_key=auth.public_key,
                 issuer=auth.issuer,
                 audience=auth.audience,
                 required_scopes=list(auth.required_scopes),
+                allowed_subjects=auth.allowed_subjects,
             )
             return RemoteAuthProvider(
                 token_verifier=verifier,
@@ -71,21 +72,37 @@ def auth_provider(config: ServerConfig) -> RemoteAuthProvider | None:
             )
 
 
-class ExpiringJWTVerifier(JWTVerifier):
+class StrictJWTVerifier(JWTVerifier):
+    def __init__(self, *, allowed_subjects: tuple[str, ...], **kwargs: Any) -> None:
+        super().__init__(**kwargs)
+        self.allowed_subjects = allowed_subjects
+
     async def verify_token(self, token: str) -> AccessToken | None:
         access = await super().verify_token(token)
-        if access is None or access.expires_at is None or not_yet_valid(access.claims):
+        if access is None:
+            return None
+        if reason := refusal(access.claims, self.allowed_subjects):
+            log.info(reason, sub=access.claims.get("sub"), email=access.claims.get("email"))
             return None
         return access
 
 
-def not_yet_valid(claims: Mapping[str, Any]) -> bool:
+def refusal(claims: Mapping[str, Any], allowed_subjects: tuple[str, ...]) -> str | None:
     now = time.time()
-    for name, leeway in (("nbf", 0), ("iat", IAT_LEEWAY_S)):
-        start = claims.get(name, now)
-        if not isinstance(start, int | float) or start > now + leeway:
-            return True
-    return False
+    if claims.get("exp") is None:
+        return "token refused: no exp claim"
+    if not starts_by(claims.get("nbf"), now):
+        return "token refused: nbf has not passed"
+    if not starts_by(claims.get("iat"), now + IAT_LEEWAY_S):
+        return "token refused: iat is too far ahead"
+    identities = (claims.get("sub"), claims.get("email"))
+    if allowed_subjects and not any(identity in allowed_subjects for identity in identities):
+        return "token refused: subject is not allowed"
+    return None
+
+
+def starts_by(start: object, deadline: float) -> bool:
+    return start is None or (isinstance(start, int | float) and start <= deadline)
 
 
 def http_app(server: FastMCP) -> StarletteWithLifespan:

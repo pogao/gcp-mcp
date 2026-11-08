@@ -1,3 +1,4 @@
+import re
 from dataclasses import dataclass
 from typing import Annotated, Literal, Self
 
@@ -9,6 +10,7 @@ from pydantic_core import PydanticCustomError
 from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
 
 MCP_PATH = "/mcp"
+SCOPE_TOKEN = re.compile(r"[\x21\x23-\x5b\x5d-\x7e]+")
 
 
 @dataclass(frozen=True, slots=True)
@@ -23,6 +25,7 @@ class AuthConfig:
     public_key: str | None
     audience: str
     required_scopes: tuple[str, ...]
+    allowed_subjects: tuple[str, ...]
     base_url: str
 
 
@@ -55,17 +58,43 @@ class Settings(BaseSettings):
     auth_public_key: str | None = None
     auth_audience: str | None = None
     auth_required_scopes: Annotated[list[str], NoDecode] = []
+    auth_allowed_subjects: Annotated[list[str], NoDecode] = []
     max_response_bytes: int = Field(100_000, ge=1)
     default_page_size: int = Field(100, ge=1)
     request_timeout_s: float = Field(60.0, gt=0)
     log_level: Literal["DEBUG", "INFO", "WARNING", "ERROR"] = "INFO"
 
-    @field_validator("auth_required_scopes", mode="before")
+    @field_validator("auth_required_scopes", "auth_allowed_subjects", mode="before")
     @classmethod
-    def split_scopes(cls, value: object) -> object:
+    def split_list(cls, value: object) -> object:
         if isinstance(value, str):
-            return [scope for part in value.split(",") if (scope := part.strip())]
+            return [part.strip() for part in value.split(",")] if value.strip() else []
         return value
+
+    @field_validator("auth_required_scopes", "auth_allowed_subjects")
+    @classmethod
+    def check_entries(cls, entries: list[str]) -> list[str]:
+        for position, entry in enumerate(entries, start=1):
+            if not entry:
+                raise PydanticCustomError(
+                    "empty_entry",
+                    "entry {position} is empty; remove the extra comma",
+                    {"position": position},
+                )
+        return entries
+
+    @field_validator("auth_required_scopes")
+    @classmethod
+    def check_scopes(cls, scopes: list[str]) -> list[str]:
+        for scope in scopes:
+            if not SCOPE_TOKEN.fullmatch(scope):
+                raise PydanticCustomError(
+                    "scope_token",
+                    "{scope} is not an RFC 6749 scope token. Give a comma-separated list "
+                    "such as gcp:read,gcp:list",
+                    {"scope": repr(scope)},
+                )
+        return scopes
 
     @field_validator("auth_public_key")
     @classmethod
@@ -123,6 +152,7 @@ class Settings(BaseSettings):
             public_key=self.auth_public_key,
             audience=self.auth_audience or resource,
             required_scopes=tuple(self.auth_required_scopes),
+            allowed_subjects=tuple(self.auth_allowed_subjects),
             base_url=self.base_url,
         )
 

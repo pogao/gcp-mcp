@@ -7,6 +7,7 @@ from fastmcp import Client
 from fastmcp.client.transports import StreamableHttpTransport
 from joserfc import jwt
 from joserfc.jwk import RSAKey
+from structlog.testing import capture_logs
 
 from gcp_mcp.server import auth_provider, build_server, http_app
 from gcp_mcp.settings import HttpConfig, Settings, StdioConfig
@@ -15,6 +16,7 @@ BASE_URL = "https://mcp.example.com"
 MCP_URL = f"{BASE_URL}/mcp"
 METADATA_URL = f"{BASE_URL}/.well-known/oauth-protected-resource/mcp"
 ISSUER = "https://issuer.example.com"
+ALLOWED_SUBJECTS = ("reader@example-project.iam.gserviceaccount.com", "1234567890")
 
 
 @pytest.fixture
@@ -27,8 +29,7 @@ def issuer_key():
     return RSAKey.generate_key(2048)
 
 
-@pytest.fixture(scope="module")
-def auth_settings(issuer_key):
+def settings_for(issuer_key, **overrides):
     return Settings(
         transport="http",
         require_auth=True,
@@ -36,7 +37,18 @@ def auth_settings(issuer_key):
         auth_issuer=ISSUER,
         auth_public_key=issuer_key.as_pem(private=False).decode(),
         auth_required_scopes=["gcp:read"],
+        **overrides,
     )
+
+
+@pytest.fixture(scope="module")
+def auth_settings(issuer_key):
+    return settings_for(issuer_key)
+
+
+@pytest.fixture(scope="module")
+def allowlist_settings(issuer_key):
+    return settings_for(issuer_key, auth_allowed_subjects=list(ALLOWED_SUBJECTS))
 
 
 def token(key, **claims):
@@ -150,6 +162,64 @@ async def test_a_token_signed_by_another_key_is_refused(auth_settings):
         response = await post_mcp(transport, forged)
 
     assert response.status_code == 401
+
+
+@pytest.mark.anyio
+@pytest.mark.parametrize(
+    "claims",
+    [
+        pytest.param({"sub": "1234567890"}, id="allowed sub"),
+        pytest.param({"sub": "4444", "email": ALLOWED_SUBJECTS[0]}, id="allowed email"),
+    ],
+)
+async def test_a_token_from_an_allowed_subject_passes(allowlist_settings, issuer_key, claims):
+    async with serving(allowlist_settings) as transport:
+        response = await post_mcp(transport, token(issuer_key, **claims))
+
+    assert response.status_code != 401
+
+
+@pytest.mark.anyio
+async def test_a_token_from_an_unlisted_subject_is_refused_only_with_an_allowlist(
+    allowlist_settings, auth_settings, issuer_key
+):
+    stranger = token(issuer_key, sub="4444", email="stranger@example.com")
+
+    async with serving(allowlist_settings) as transport:
+        refused = await post_mcp(transport, stranger)
+    async with serving(auth_settings) as transport:
+        admitted = await post_mcp(transport, stranger)
+
+    assert refused.status_code == 401
+    assert admitted.status_code != 401
+
+
+@pytest.mark.anyio
+@pytest.mark.parametrize(
+    ("claims", "reason"),
+    [
+        pytest.param({"exp": None}, "exp", id="no expiry"),
+        pytest.param({"nbf": int(time.time()) + 3600}, "nbf", id="not yet valid"),
+        pytest.param({"iat": int(time.time()) + 600}, "iat", id="issued in the future"),
+        pytest.param({"sub": "4444"}, "subject", id="subject not allowed"),
+    ],
+)
+async def test_a_refusal_logs_its_reason_and_the_subject_but_not_the_token(
+    allowlist_settings, issuer_key, claims, reason
+):
+    claims = {"sub": "1234567890", "email": "stranger@example.com"} | claims
+    bearer = token(issuer_key, **claims)
+
+    with capture_logs() as logs:
+        async with serving(allowlist_settings) as transport:
+            response = await post_mcp(transport, bearer)
+
+    assert response.status_code == 401
+    [entry] = logs
+    assert entry["log_level"] == "info"
+    assert reason in entry["event"]
+    assert (entry["sub"], entry["email"]) == (claims["sub"], claims["email"])
+    assert bearer not in str(entry)
 
 
 @pytest.mark.anyio

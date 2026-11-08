@@ -21,6 +21,7 @@ READ_SCOPED_AUTH = AuthConfig(
     public_key=None,
     audience="https://mcp.example.com/mcp",
     required_scopes=("gcp:read",),
+    allowed_subjects=(),
     base_url="https://mcp.example.com",
 )
 
@@ -52,6 +53,14 @@ def test_require_auth_builds_an_auth_config():
     assert config.auth == READ_SCOPED_AUTH
 
 
+def test_allowed_subjects_reach_the_auth_config():
+    subjects = ["reader@example-project.iam.gserviceaccount.com", "1234567890"]
+
+    config = Settings(**AUTH, auth_allowed_subjects=subjects).config()
+
+    assert config.auth.allowed_subjects == tuple(subjects)
+
+
 def test_audience_defaults_to_the_mcp_endpoint_without_a_double_slash():
     config = Settings(**AUTH | {"base_url": "https://mcp.example.com/"}).config()
 
@@ -78,6 +87,25 @@ def test_require_auth_is_a_bare_cli_flag():
     )
 
     assert settings.config().auth.required_scopes == ("gcp:read", "gcp:list")
+
+
+def test_allowed_subjects_are_a_comma_separated_cli_flag():
+    settings = CliApp.run(
+        Settings,
+        cli_args=[
+            "--transport", "http",
+            "--require-auth",
+            "--base-url", "https://mcp.example.com",
+            "--auth-issuer", "https://issuer.example.com",
+            "--auth-jwks-uri", "https://issuer.example.com/jwks.json",
+            "--auth-allowed-subjects", "reader@example-project.iam.gserviceaccount.com,1234567890",
+        ],
+    )
+
+    assert settings.config().auth.allowed_subjects == (
+        "reader@example-project.iam.gserviceaccount.com",
+        "1234567890",
+    )
 
 
 def test_require_auth_reads_the_environment(monkeypatch):
@@ -114,11 +142,52 @@ def test_require_auth_refuses_an_incomplete_setup(overrides, message):
         ("auth_public_key", PUBLIC_KEY),
         ("auth_audience", "https://mcp.example.com/mcp"),
         ("auth_required_scopes", ["gcp:read"]),
+        ("auth_allowed_subjects", ["reader@example-project.iam.gserviceaccount.com"]),
     ],
 )
 def test_auth_settings_without_require_auth_are_refused(field, value):
     with pytest.raises(ValidationError, match=f"require_auth is false.*{field}"):
         Settings(transport="http", **{field: value})
+
+
+@pytest.mark.parametrize(
+    "scopes",
+    [
+        pytest.param('["gcp:read"]', id="json list"),
+        pytest.param("gcp:read gcp:list", id="space separated"),
+        pytest.param('gcp:"read"', id="double quote"),
+        pytest.param("gcp:read\\list", id="backslash"),
+    ],
+)
+def test_a_scope_outside_the_rfc_6749_grammar_is_refused(scopes):
+    with pytest.raises(ValidationError, match="comma-separated list"):
+        Settings(**AUTH, auth_required_scopes=scopes)
+
+
+@pytest.mark.parametrize("field", ["auth_required_scopes", "auth_allowed_subjects"])
+@pytest.mark.parametrize(
+    ("value", "message"),
+    [
+        pytest.param(",,", "entry 1 is empty; remove", id="only commas"),
+        pytest.param(" a , ", "entry 2 is empty; remove", id="trailing comma"),
+        pytest.param(["a", ""], "entry 2 is empty; remove", id="python list"),
+    ],
+)
+def test_an_empty_list_entry_is_refused(field, value, message):
+    with pytest.raises(ValidationError, match=message):
+        Settings(**AUTH, **{field: value})
+
+
+@pytest.mark.parametrize("field", ["auth_required_scopes", "auth_allowed_subjects"])
+@pytest.mark.parametrize(
+    ("value", "entries"),
+    [
+        pytest.param("a, b", ["a", "b"], id="spaces around the comma"),
+        pytest.param("", [], id="empty string"),
+    ],
+)
+def test_a_list_setting_splits_on_commas(field, value, entries):
+    assert getattr(Settings(**AUTH, **{field: value}), field) == entries
 
 
 def test_a_public_key_keeps_its_pem_text():
