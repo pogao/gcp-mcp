@@ -206,10 +206,11 @@ def prepare(
         problems.append(
             f"unknown {', '.join(map(repr, unknown))}; the accepted names are {accepted}"
         )
-    content = dict(body) if body and method.accepts_body else None
+    content = None
     if body and not method.accepts_body:
         problems.append(f"{method.name} is a {method.http_method} method and takes no request body")
-    if content is not None:
+    elif body:
+        content = dict(body)
         problems.extend(_body_problems(method, content, schemas))
     if problems:
         raise BadArguments(method.service, method.name, problems)
@@ -311,10 +312,10 @@ def _lists(node: Any) -> Iterator[list[Any]]:
 def _texts(param: Param, value: object) -> tuple[list[str], list[str]]:
     if isinstance(value, list | tuple) and not param.repeated:
         return [], [f"{param.name!r} takes one value, not a list"]
+    convert, kind = COERCIONS.get(param.type, COERCIONS["string"])
     texts: list[str] = []
     problems: list[str] = []
     for item in value if isinstance(value, list | tuple) else [value]:
-        convert, kind = COERCIONS.get(param.type, COERCIONS["string"])
         text = convert(item)
         if text is None:
             problems.append(f"{param.name!r} must be {kind}, not {item!r}")
