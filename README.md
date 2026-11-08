@@ -139,7 +139,7 @@ gcloud auth print-identity-token \
 	--include-email
 ```
 
-`gcloud auth print-identity-token` prints a token for the active account unless you impersonate a service account, as above. `--audiences` takes one audience. `--include-email` adds the `email` claim and, per the help text, is for an impersonated service account. Without it, the token carries no `email` claim, so the allowlist entry must be the value of the `sub` claim.
+`gcloud auth print-identity-token` prints a token for the active account unless you impersonate a service account, as above. `--audiences` takes one audience. With `--include-email`, the token carries the service account's `email` claim, so the allowlist entry can be the email. Without it, list the service account's unique ID, which is the token's `sub` claim. The server matches `email` without checking `email_verified`, so with an issuer other than Google, list `sub` values.
 
 | Flag | Environment variable | Meaning |
 | --- | --- | --- |
