@@ -11,12 +11,13 @@ import json
 import re
 from collections.abc import Callable, Iterator, Mapping
 from dataclasses import dataclass
+from http.client import responses
 from typing import Any, Literal
 
 import uritemplate
 
 from gcp_mcp.discovery import Param, ReadMethod
-from gcp_mcp.errors import BadArguments
+from gcp_mcp.errors import BadArguments, GcpApiError
 from gcp_mcp.policy import REDACTED_FIELDS
 
 GLOBAL_PARAMS = frozenset(
@@ -168,6 +169,30 @@ def bound(payload: Any, max_bytes: int) -> tuple[Any, int]:
         if detached := {id(node) for node in _lists(item)}:
             lists = [node for node in lists if id(node) not in detached]
     return payload, omitted
+
+
+def parse_error(status: int, body: bytes) -> GcpApiError:
+    text = body.decode(errors="replace")
+    error = _envelope(text)
+    phrase = responses.get(status)
+    if error is None:
+        return GcpApiError(status, phrase, text[:200].strip() or phrase or "no response body")
+    legacy = next(iter(error.get("errors") or ()), None)
+    return GcpApiError(
+        status,
+        error.get("status") or (legacy.get("reason") if isinstance(legacy, dict) else None),
+        str(error.get("message") or phrase or "no message"),
+        tuple(detail for detail in error.get("details") or () if isinstance(detail, dict)),
+    )
+
+
+def _envelope(text: str) -> dict[str, Any] | None:
+    try:
+        payload = json.loads(text)
+    except ValueError:
+        return None
+    error = payload.get("error") if isinstance(payload, dict) else None
+    return error if isinstance(error, dict) else None
 
 
 def _compact(payload: Any) -> str:
