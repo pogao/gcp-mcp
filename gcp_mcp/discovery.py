@@ -23,7 +23,7 @@ from urllib.parse import urlparse
 
 from googleapiclient.discovery_cache import DISCOVERY_DOC_DIR
 
-from gcp_mcp.policy import Verdict, admit
+from gcp_mcp.policy import Excluded, Verdict, admit
 
 CLOUD_PLATFORM_SCOPE = "https://www.googleapis.com/auth/cloud-platform"
 
@@ -173,4 +173,85 @@ def judge(raw: Mapping[str, Any]) -> Verdict:
         "request" in raw,
         raw.get("response", {}).get("$ref"),
         raw["id"].rpartition(".")[0],
+    )
+
+
+def parse_service(doc: Mapping[str, Any]) -> ServiceSpec:
+    service, version = doc["name"], doc["version"]
+    base_url = doc["rootUrl"] + doc["servicePath"]
+    schemas = doc.get("schemas", {})
+    methods: dict[str, ReadMethod] = {}
+    excluded: dict[str, str] = {}
+    for raw in walk_methods(doc):
+        name = raw["id"].partition(".")[2]
+        verdict = judge(raw)
+        if isinstance(verdict, Excluded):
+            excluded[name] = verdict.reason
+            continue
+        params = _params(raw.get("parameters", {}), raw["path"])
+        methods[name] = ReadMethod(
+            service=service,
+            version=version,
+            name=name,
+            http_method=raw["httpMethod"],
+            base_url=base_url,
+            path_template=raw["path"],
+            params=params,
+            accepts_body=verdict.accepts_body,
+            body_schema=raw.get("request", {}).get("$ref"),
+            response_schema=raw.get("response", {}).get("$ref"),
+            pagination=_pagination(raw, schemas),
+            description=raw.get("description", ""),
+            scopes=tuple(raw.get("scopes", ())),
+            deprecated=raw.get("deprecated", False),
+        )
+    return ServiceSpec(
+        name=service,
+        version=version,
+        title=doc["title"],
+        docs_url=doc.get("documentationLink", ""),
+        base_url=base_url,
+        global_params=_params(doc.get("parameters", {}), ""),
+        methods=dict(sorted(methods.items())),
+        excluded=dict(sorted(excluded.items())),
+        schemas=schemas,
+    )
+
+
+def _params(raw: Mapping[str, Mapping[str, Any]], path_template: str) -> dict[str, Param]:
+    reserved = set(re.findall(r"\{\+([^}]*)\}", path_template))
+    return {
+        name: Param(
+            name=name,
+            location=spec["location"],
+            type=spec["type"],
+            required=spec.get("required", False),
+            repeated=spec.get("repeated", False),
+            reserved=name in reserved,
+            pattern=re.compile(spec["pattern"]) if "pattern" in spec else None,
+            enum=tuple(spec["enum"]) if "enum" in spec else None,
+            description=spec.get("description", ""),
+        )
+        for name, spec in raw.items()
+    }
+
+
+def _pagination(raw: Mapping[str, Any], schemas: Mapping[str, Any]) -> Pagination | None:
+    def properties(role: str) -> Mapping[str, Any]:
+        return schemas.get(raw.get(role, {}).get("$ref"), {}).get("properties", {})
+
+    if "nextPageToken" not in properties("response"):
+        return None
+    params = raw.get("parameters", {})
+    in_body = "pageToken" not in params
+    source = properties("request") if in_body else params
+    if "pageToken" not in source:
+        return None
+    size_param = next((size for size in ("pageSize", "maxResults") if size in source), None)
+    size_max = source[size_param].get("maximum") if size_param else None
+    return Pagination(
+        token_param="pageToken",
+        size_param=size_param,
+        size_max=int(size_max) if size_max is not None else None,
+        in_body=in_body,
     )
