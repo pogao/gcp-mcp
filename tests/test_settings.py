@@ -150,6 +150,28 @@ def test_auth_settings_without_require_auth_are_refused(field, value):
         Settings(transport="http", **{field: value})
 
 
+@pytest.mark.parametrize(
+    "scopes",
+    [
+        pytest.param('["gcp:read"]', id="json list"),
+        pytest.param("gcp:read gcp:list", id="space separated"),
+        pytest.param('gcp:"read"', id="double quote"),
+        pytest.param("gcp:read\\list", id="backslash"),
+        pytest.param(["gcp:read", ""], id="empty entry"),
+    ],
+)
+def test_a_scope_outside_the_rfc_6749_grammar_is_refused(scopes):
+    with pytest.raises(ValidationError, match="comma-separated list"):
+        Settings(**AUTH, auth_required_scopes=scopes)
+
+
+def test_an_empty_allowed_subject_is_refused():
+    subjects = ["reader@example-project.iam.gserviceaccount.com", ""]
+
+    with pytest.raises(ValidationError, match="empty"):
+        Settings(**AUTH, auth_allowed_subjects=subjects)
+
+
 def test_a_public_key_keeps_its_pem_text():
     config = Settings(**AUTH | {"auth_jwks_uri": None, "auth_public_key": PUBLIC_KEY}).config()
 
