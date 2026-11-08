@@ -1,10 +1,9 @@
-"""The one way this server talks to Google Cloud.
+"""Only `prepare` constructs a `PreparedRequest`, and `tests/test_layering.py` enforces it.
 
-`prepare` is the only constructor of `PreparedRequest`, so every request passes its guards.
-`{+name}` expansion passes `:` and `?` through unescaped, so without them `versions/1:access`
-reaches the refused `access` method and `projects/p:setIamPolicy?x=` turns a POST `getIamPolicy`
-into `setIamPolicy` with the caller's body. Firestore and Datastore reads also accept a body
-that opens a read-write transaction, which `prepare` refuses.
+`{+name}` expansion passes `:` and `?` through unescaped, so without the `prepare` guards
+`versions/1:access` reaches the refused `access` method and `projects/p:setIamPolicy?x=` turns a
+POST `getIamPolicy` into `setIamPolicy` with the caller's body. Firestore and Datastore reads also
+accept a body that opens a read-write transaction, which `prepare` refuses.
 """
 
 import asyncio
