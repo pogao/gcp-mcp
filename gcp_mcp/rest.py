@@ -3,7 +3,8 @@
 `{+name}` expansion passes `:` and `?` through unescaped, so without the `prepare` guards
 `versions/1:access` reaches the refused `access` method and `projects/p:setIamPolicy?x=` turns a
 POST `getIamPolicy` into `setIamPolicy` with the caller's body. Firestore and Datastore reads also
-accept a body that opens a read-write transaction, which `prepare` refuses.
+accept a body that opens a read-write transaction, which `prepare` refuses in any spelling Google's
+JSON parsers accept.
 """
 
 import asyncio
@@ -53,7 +54,7 @@ FIELDS = Param(
     description="",
 )
 PLAIN_JSON = (("alt", "json"), ("prettyPrint", "false"))
-TRANSACTION_KEYS = frozenset({"newTransaction", "transaction", "transactionOptions"})
+TRANSACTION_KEYS = frozenset({"newtransaction", "transaction", "transactionoptions"})
 UNSAFE_IN_RESERVED = "?#%\\"
 CUSTOM_METHOD = re.compile(r":[A-Za-z]+(?=/|$)")
 REDACTED = "[redacted]"
@@ -210,7 +211,7 @@ def prepare(
         problems.append(f"{method.name} is a {method.http_method} method and takes no request body")
     elif body:
         content = dict(body)
-        problems.extend(_body_problems(method, content, schemas))
+        problems.extend(_body_problems(content, schemas.get(method.body_schema, {}), schemas, ""))
     if problems:
         raise BadArguments(method.service, method.name, problems)
 
@@ -221,7 +222,8 @@ def prepare(
             size = min(size, paging.size_max)
         if paging.in_body:
             content = dict(content or {})
-            content.setdefault(paging.size_param, size)
+            if all(_normalize(key) != _normalize(paging.size_param) for key in content):
+                content[paging.size_param] = size
         elif args.get(paging.size_param) is None:
             query.append((paging.size_param, str(size)))
     return PreparedRequest(
@@ -349,32 +351,39 @@ def _path_problems(param: Param, value: str) -> list[str]:
 
 
 def _body_problems(
-    method: ReadMethod, body: Mapping[str, object], schemas: Mapping[str, Any]
-) -> list[str]:
-    properties = schemas.get(method.body_schema, {}).get("properties", {})
-    problems = []
-    if unknown := [key for key in body if key not in properties]:
-        problems.append(
-            f"body {', '.join(map(repr, unknown))} not in {method.body_schema}; "
+    node: object, schema: Mapping[str, Any], schemas: Mapping[str, Any], path: str
+) -> Iterator[str]:
+    seen: set[str] = set()
+    while (ref := schema.get("$ref")) and ref not in seen:
+        seen.add(ref)
+        schema = schemas.get(ref, {})
+    if isinstance(node, list):
+        for index, item in enumerate(node):
+            yield from _body_problems(item, schema.get("items", {}), schemas, f"{path}[{index}]")
+        return
+    if not isinstance(node, Mapping):
+        return
+    properties = schema.get("properties")
+    fields = {_normalize(name): field for name, field in (properties or {}).items()}
+    unknown = []
+    for key, value in node.items():
+        here = f"{path}.{key}" if path else key
+        if _normalize(key) in TRANSACTION_KEYS:
+            yield f"body key {here!r} opens a transaction, and this server only reads"
+        field = fields.get(_normalize(key), schema.get("additionalProperties"))
+        if field is None and properties is not None:
+            unknown.append(here)
+        yield from _body_problems(value, field or {}, schemas, here)
+    if unknown:
+        where = schema.get("id", "the request schema")
+        yield (
+            f"body {', '.join(map(repr, unknown))} not in {where}; "
             f"the accepted body fields are {', '.join(properties)}"
         )
-    problems.extend(
-        f"body key {key!r} opens a transaction, and this server only reads"
-        for key in _transaction_keys(body, ())
-    )
-    return problems
 
 
-def _transaction_keys(node: object, path: tuple[str, ...]) -> Iterator[str]:
-    if isinstance(node, Mapping):
-        for key, value in node.items():
-            here = (*path, key)
-            if key in TRANSACTION_KEYS:
-                yield ".".join(here)
-            yield from _transaction_keys(value, here)
-    elif isinstance(node, list):
-        for item in node:
-            yield from _transaction_keys(item, path)
+def _normalize(name: str) -> str:
+    return name.replace("_", "").lower()
 
 
 def _string(value: object) -> str | None:
