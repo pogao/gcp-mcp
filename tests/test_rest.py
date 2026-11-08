@@ -656,6 +656,16 @@ async def test_call_posts_the_body_and_surfaces_the_page_token() -> None:
 
 
 @pytest.mark.anyio
+async def test_a_query_value_cannot_add_parameters() -> None:
+    google = Google(httpx2.Response(200, json={}))
+    await google.gcp().call("compute", "instances.get", {**VM, "fields": "name&alt=media#x"})
+    url = google.requests[0].url
+    assert url.params.get_list("alt") == ["json"]
+    assert url.params.get_list("fields") == ["name&alt=media#x"]
+    assert url.fragment == ""
+
+
+@pytest.mark.anyio
 async def test_call_honors_an_explicit_version() -> None:
     google = Google(httpx2.Response(200, json={}))
     result = await google.gcp().call("compute", "instances.get", VM, version="beta")
