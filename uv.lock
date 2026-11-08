@@ -551,18 +551,20 @@ dependencies = [
     { name = "fastapi" },
     { name = "fastmcp" },
     { name = "google-api-python-client" },
+    { name = "google-auth", extra = ["requests"] },
     { name = "google-cloud-compute" },
     { name = "google-cloud-resource-manager" },
     { name = "google-cloud-storage" },
+    { name = "httpx2" },
     { name = "pydantic" },
     { name = "pydantic-settings" },
     { name = "starlette" },
     { name = "structlog" },
+    { name = "uritemplate" },
 ]
 
 [package.dev-dependencies]
 dev = [
-    { name = "httpx2" },
     { name = "joserfc" },
     { name = "pytest" },
     { name = "ruff" },
@@ -574,18 +576,20 @@ requires-dist = [
     { name = "fastapi", specifier = ">=0.146.0" },
     { name = "fastmcp", specifier = ">=4.1.6" },
     { name = "google-api-python-client", specifier = ">=2.201.0" },
+    { name = "google-auth", extras = ["requests"], specifier = ">=2.62.0" },
     { name = "google-cloud-compute", specifier = ">=1.56.0" },
     { name = "google-cloud-resource-manager", specifier = ">=1.19.0" },
     { name = "google-cloud-storage", specifier = ">=3.17.1" },
+    { name = "httpx2", specifier = ">=2.14.0" },
     { name = "pydantic", specifier = ">=2.14.1" },
     { name = "pydantic-settings", specifier = ">=2.16.0" },
     { name = "starlette", specifier = ">=1.9.0" },
     { name = "structlog", specifier = ">=26.1.0" },
+    { name = "uritemplate", specifier = ">=4.2.0" },
 ]
 
 [package.metadata.requires-dev]
 dev = [
-    { name = "httpx2", specifier = ">=2.14.0" },
     { name = "joserfc", specifier = ">=1.8.0" },
     { name = "pytest", specifier = ">=9.2" },
     { name = "ruff", specifier = ">=0.17" },
@@ -641,6 +645,11 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/f5/b9/4b2528f30114b106e3c3a7298ba38d85e682fd1f83fe7c4a5b77c7677082/google_auth-2.62.0.tar.gz", hash = "sha256:0bef0ce54bdf9ce226c5d66e4264413bd918141c31bbe49fb52eac882f513d69", size = 398180, upload-time = "2026-10-12T19:20:48.328Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/eb/a3/87fe9b7203ec2e56ea6a57c75e6d632eaf9487c7f7978cdad1d801bee0af/google_auth-2.62.0-py3-none-any.whl", hash = "sha256:4ff4319aeb4ad128409759d397a9fcafad126d0031d241cc0dd6b9a00b43e3f3", size = 267911, upload-time = "2026-10-12T19:20:46.355Z" },
+]
+
+[package.optional-dependencies]
+requests = [
+    { name = "requests" },
 ]
 
 [[package]]

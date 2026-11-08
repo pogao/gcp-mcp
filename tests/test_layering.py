@@ -38,19 +38,48 @@ def test_discovery_imports_only_stdlib_policy_errors_and_the_document_path() -> 
     assert top_level_imports("discovery") <= allowed
 
 
+def test_rest_imports_only_stdlib_its_core_modules_and_the_http_stack() -> None:
+    allowed = sys.stdlib_module_names | {"gcp_mcp", "google", "httpx2", "uritemplate"}
+    assert top_level_imports("rest") <= allowed
+
+
 @pytest.mark.parametrize("module", SERVER)
 def test_server_modules_import_no_http_client_or_google_client(module: str) -> None:
-    assert top_level_imports(module).isdisjoint({"httpx", "googleapiclient"})
+    assert top_level_imports(module).isdisjoint({"httpx", "httpx2", "googleapiclient"})
+
+
+class Constructors(ast.NodeVisitor):
+    def __init__(self, path: Path, name: str, found: list[tuple[str, str]]) -> None:
+        self.file = path.name
+        self.name = name
+        self.found = found
+        self.scope = ["<module>"]
+
+    def visit_FunctionDef(self, node: ast.FunctionDef | ast.AsyncFunctionDef) -> None:
+        self.scope.append(node.name)
+        self.generic_visit(node)
+        self.scope.pop()
+
+    visit_AsyncFunctionDef = visit_FunctionDef
+
+    def visit_Call(self, node: ast.Call) -> None:
+        callee = node.func
+        name = callee.id if isinstance(callee, ast.Name) else getattr(callee, "attr", None)
+        if name == self.name:
+            self.found.append((self.file, self.scope[-1]))
+        self.generic_visit(node)
+
+
+def construction_sites(name: str) -> list[tuple[str, str]]:
+    found: list[tuple[str, str]] = []
+    for path in sorted(PACKAGE.glob("*.py")):
+        Constructors(path, name, found).visit(ast.parse(path.read_text()))
+    return found
 
 
 def test_only_parse_service_constructs_read_methods() -> None:
-    constructors = []
-    for path in sorted(PACKAGE.glob("*.py")):
-        for node in ast.walk(ast.parse(path.read_text())):
-            if not isinstance(node, ast.Call):
-                continue
-            callee = node.func
-            name = callee.id if isinstance(callee, ast.Name) else getattr(callee, "attr", None)
-            if name == "ReadMethod":
-                constructors.append(path.name)
-    assert constructors == ["discovery.py"]
+    assert construction_sites("ReadMethod") == [("discovery.py", "parse_service")]
+
+
+def test_only_prepare_constructs_prepared_requests() -> None:
+    assert construction_sites("PreparedRequest") == [("rest.py", "prepare")]

@@ -1,5 +1,18 @@
 from collections.abc import Mapping, Sequence
 
+IDENTITY = (
+    "This concerns the server's own Google Cloud identity or whether the API is enabled in the "
+    "project, not your arguments. Ask the operator to grant access or enable the API."
+)
+NEXT_MOVES: Mapping[int, str] = {
+    400: "Check the arguments against gcp_describe_method and try again.",
+    401: IDENTITY,
+    403: IDENTITY,
+    404: "Check the resource names, or list the parent collection to find valid names.",
+    429: "Google Cloud is limiting the request rate. Back off before you retry.",
+}
+SERVER_ERROR = "Retry once, and report the error if it fails again."
+
 
 class GcpMcpError(Exception):
     def for_llm(self) -> str:
@@ -95,7 +108,9 @@ class GcpApiError(GcpMcpError):
         self.details = tuple(details)
 
     def for_llm(self) -> str:
-        return sentence(f"Google Cloud answered {self}")
+        answer = sentence(f"Google Cloud answered {self}")
+        move = NEXT_MOVES.get(self.status, SERVER_ERROR if 500 <= self.status < 600 else None)
+        return f"{answer} {move}" if move else answer
 
 
 class UnsupportedResponse(GcpMcpError):

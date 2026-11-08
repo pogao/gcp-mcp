@@ -112,3 +112,28 @@ def test_for_llm_never_doubles_the_period() -> None:
     assert ".." not in GcpApiError(403, None, "Denied.", ()).for_llm()
     assert ".." not in UnsupportedResponse("the body is not JSON.").for_llm()
     assert ".." not in GcpMcpError("plain message.").for_llm()
+
+
+@pytest.mark.parametrize(
+    ("status", "hints"),
+    [
+        (400, ("gcp_describe_method",)),
+        (401, ("identity", "enabled", "not your arguments")),
+        (403, ("identity", "enabled", "not your arguments")),
+        (404, ("names",)),
+        (429, ("Back off",)),
+        (500, ("Retry once",)),
+        (503, ("Retry once",)),
+    ],
+)
+def test_gcp_api_error_names_the_next_move(status: int, hints: tuple[str, ...]) -> None:
+    text = GcpApiError(status, None, "message", ()).for_llm()
+    assert all(hint in text for hint in hints)
+    assert text.endswith(".")
+
+
+def test_gcp_api_error_without_a_known_next_move_reports_the_answer_alone() -> None:
+    text = GcpApiError(409, "ABORTED", "Concurrent change", ()).for_llm()
+    assert "Concurrent change" in text
+    for hint in ("gcp_describe_method", "identity", "names", "Back off", "Retry once"):
+        assert hint not in text
