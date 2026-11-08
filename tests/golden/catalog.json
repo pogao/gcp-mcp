@@ -1,0 +1,1751 @@
+[
+  {
+    "name": "accessapproval",
+    "default_version": "v1",
+    "versions": [
+      "v1"
+    ],
+    "read_methods": 12
+  },
+  {
+    "name": "accesscontextmanager",
+    "default_version": "v1",
+    "versions": [
+      "v1",
+      "v1beta"
+    ],
+    "read_methods": 21
+  },
+  {
+    "name": "advisorynotifications",
+    "default_version": "v1",
+    "versions": [
+      "v1"
+    ],
+    "read_methods": 6
+  },
+  {
+    "name": "agentidentity",
+    "default_version": "v1",
+    "versions": [
+      "v1",
+      "v1beta",
+      "v1alpha"
+    ],
+    "read_methods": 12
+  },
+  {
+    "name": "agentidentitycredentials",
+    "default_version": "v1",
+    "versions": [
+      "v1",
+      "v1beta",
+      "v1alpha"
+    ],
+    "read_methods": 0
+  },
+  {
+    "name": "agentregistry",
+    "default_version": "v1",
+    "versions": [
+      "v1",
+      "v1alpha"
+    ],
+    "read_methods": 19
+  },
+  {
+    "name": "aiplatform",
+    "default_version": "v1",
+    "versions": [
+      "v1",
+      "v1beta1"
+    ],
+    "read_methods": 424
+  },
+  {
+    "name": "alloydb",
+    "default_version": "v1",
+    "versions": [
+      "v1",
+      "v1beta",
+      "v1alpha"
+    ],
+    "read_methods": 14
+  },
+  {
+    "name": "analyticshub",
+    "default_version": "v1",
+    "versions": [
+      "v1",
+      "v1beta1"
+    ],
+    "read_methods": 16
+  },
+  {
+    "name": "apigateway",
+    "default_version": "v1",
+    "versions": [
+      "v1",
+      "v1beta"
+    ],
+    "read_methods": 16
+  },
+  {
+    "name": "apigee",
+    "default_version": "v1",
+    "versions": [
+      "v1"
+    ],
+    "read_methods": 159
+  },
+  {
+    "name": "apigeeregistry",
+    "default_version": "v1",
+    "versions": [
+      "v1"
+    ],
+    "read_methods": 53
+  },
+  {
+    "name": "apihub",
+    "default_version": "v1",
+    "versions": [
+      "v1"
+    ],
+    "read_methods": 46
+  },
+  {
+    "name": "apikeys",
+    "default_version": "v2",
+    "versions": [
+      "v2"
+    ],
+    "read_methods": 4
+  },
+  {
+    "name": "apim",
+    "default_version": "v1alpha",
+    "versions": [
+      "v1alpha"
+    ],
+    "read_methods": 14
+  },
+  {
+    "name": "appengine",
+    "default_version": "v1",
+    "versions": [
+      "v1",
+      "v1beta5",
+      "v1beta4",
+      "v1beta",
+      "v1alpha"
+    ],
+    "read_methods": 24
+  },
+  {
+    "name": "apphub",
+    "default_version": "v1",
+    "versions": [
+      "v1",
+      "v1alpha"
+    ],
+    "read_methods": 24
+  },
+  {
+    "name": "artifactregistry",
+    "default_version": "v1",
+    "versions": [
+      "v1",
+      "v1beta2",
+      "v1beta1"
+    ],
+    "read_methods": 32
+  },
+  {
+    "name": "assuredworkloads",
+    "default_version": "v1",
+    "versions": [
+      "v1",
+      "v1beta1"
+    ],
+    "read_methods": 23
+  },
+  {
+    "name": "auditmanager",
+    "default_version": "v1",
+    "versions": [
+      "v1"
+    ],
+    "read_methods": 26
+  },
+  {
+    "name": "backupdr",
+    "default_version": "v1",
+    "versions": [
+      "v1",
+      "v1beta"
+    ],
+    "read_methods": 32
+  },
+  {
+    "name": "baremetalsolution",
+    "default_version": "v2",
+    "versions": [
+      "v2",
+      "v1",
+      "v1alpha1"
+    ],
+    "read_methods": 21
+  },
+  {
+    "name": "batch",
+    "default_version": "v1",
+    "versions": [
+      "v1"
+    ],
+    "read_methods": 8
+  },
+  {
+    "name": "beyondcorp",
+    "default_version": "v1",
+    "versions": [
+      "v1",
+      "v1alpha"
+    ],
+    "read_methods": 28
+  },
+  {
+    "name": "biglake",
+    "default_version": "v1",
+    "versions": [
+      "v1"
+    ],
+    "read_methods": 12
+  },
+  {
+    "name": "bigquery",
+    "default_version": "v2",
+    "versions": [
+      "v2"
+    ],
+    "read_methods": 22
+  },
+  {
+    "name": "bigqueryconnection",
+    "default_version": "v1",
+    "versions": [
+      "v1",
+      "v1beta1"
+    ],
+    "read_methods": 4
+  },
+  {
+    "name": "bigquerydatapolicy",
+    "default_version": "v2",
+    "versions": [
+      "v2",
+      "v1"
+    ],
+    "read_methods": 4
+  },
+  {
+    "name": "bigquerydatatransfer",
+    "default_version": "v1",
+    "versions": [
+      "v1"
+    ],
+    "read_methods": 22
+  },
+  {
+    "name": "bigqueryreservation",
+    "default_version": "v1",
+    "versions": [
+      "v1",
+      "v1beta1",
+      "v1alpha2"
+    ],
+    "read_methods": 14
+  },
+  {
+    "name": "bigtableadmin",
+    "default_version": "v2",
+    "versions": [
+      "v2",
+      "v1"
+    ],
+    "read_methods": 39
+  },
+  {
+    "name": "billingbudgets",
+    "default_version": "v1",
+    "versions": [
+      "v1",
+      "v1beta1"
+    ],
+    "read_methods": 2
+  },
+  {
+    "name": "binaryauthorization",
+    "default_version": "v1",
+    "versions": [
+      "v1",
+      "v1beta1"
+    ],
+    "read_methods": 10
+  },
+  {
+    "name": "blockchainnodeengine",
+    "default_version": "v1",
+    "versions": [
+      "v1"
+    ],
+    "read_methods": 6
+  },
+  {
+    "name": "certificatemanager",
+    "default_version": "v1",
+    "versions": [
+      "v1"
+    ],
+    "read_methods": 16
+  },
+  {
+    "name": "ces",
+    "default_version": "v1",
+    "versions": [
+      "v1",
+      "v1beta"
+    ],
+    "read_methods": 27
+  },
+  {
+    "name": "cloudasset",
+    "default_version": "v1",
+    "versions": [
+      "v1",
+      "v1beta1",
+      "v1p7beta1",
+      "v1p5beta1",
+      "v1p4beta1",
+      "v1p1beta1"
+    ],
+    "read_methods": 15
+  },
+  {
+    "name": "cloudbilling",
+    "default_version": "v1",
+    "versions": [
+      "v1",
+      "v1beta"
+    ],
+    "read_methods": 14
+  },
+  {
+    "name": "cloudbuild",
+    "default_version": "v1",
+    "versions": [
+      "v2",
+      "v1",
+      "v1beta1",
+      "v1alpha2",
+      "v1alpha1"
+    ],
+    "read_methods": 20
+  },
+  {
+    "name": "cloudchannel",
+    "default_version": "v1",
+    "versions": [
+      "v1"
+    ],
+    "read_methods": 31
+  },
+  {
+    "name": "cloudcommerceprocurement",
+    "default_version": "v1",
+    "versions": [
+      "v1"
+    ],
+    "read_methods": 4
+  },
+  {
+    "name": "cloudcontrolspartner",
+    "default_version": "v1",
+    "versions": [
+      "v1",
+      "v1beta"
+    ],
+    "read_methods": 10
+  },
+  {
+    "name": "clouddebugger",
+    "default_version": "v2",
+    "versions": [
+      "v2"
+    ],
+    "read_methods": 4
+  },
+  {
+    "name": "clouddeploy",
+    "default_version": "v1",
+    "versions": [
+      "v1"
+    ],
+    "read_methods": 29
+  },
+  {
+    "name": "clouderrorreporting",
+    "default_version": "v1beta1",
+    "versions": [
+      "v1beta1"
+    ],
+    "read_methods": 6
+  },
+  {
+    "name": "cloudfunctions",
+    "default_version": "v2",
+    "versions": [
+      "v2",
+      "v1",
+      "v2beta",
+      "v2alpha"
+    ],
+    "read_methods": 8
+  },
+  {
+    "name": "cloudidentity",
+    "default_version": "v1",
+    "versions": [
+      "v1",
+      "v1beta1"
+    ],
+    "read_methods": 34
+  },
+  {
+    "name": "cloudiot",
+    "default_version": "v1",
+    "versions": [
+      "v1"
+    ],
+    "read_methods": 11
+  },
+  {
+    "name": "cloudkms",
+    "default_version": "v1",
+    "versions": [
+      "v1"
+    ],
+    "read_methods": 42
+  },
+  {
+    "name": "cloudlocationfinder",
+    "default_version": "v1",
+    "versions": [
+      "v1",
+      "v1alpha"
+    ],
+    "read_methods": 5
+  },
+  {
+    "name": "cloudnumberregistry",
+    "default_version": "v1alpha",
+    "versions": [
+      "v1alpha"
+    ],
+    "read_methods": 24
+  },
+  {
+    "name": "cloudproductregistry",
+    "default_version": "v1",
+    "versions": [
+      "v1"
+    ],
+    "read_methods": 9
+  },
+  {
+    "name": "cloudprofiler",
+    "default_version": "v2",
+    "versions": [
+      "v2"
+    ],
+    "read_methods": 1
+  },
+  {
+    "name": "cloudresourcemanager",
+    "default_version": "v3",
+    "versions": [
+      "v3",
+      "v2",
+      "v1",
+      "v2beta1",
+      "v1beta1"
+    ],
+    "read_methods": 40
+  },
+  {
+    "name": "cloudscheduler",
+    "default_version": "v1",
+    "versions": [
+      "v1",
+      "v1beta1"
+    ],
+    "read_methods": 7
+  },
+  {
+    "name": "cloudshell",
+    "default_version": "v1",
+    "versions": [
+      "v1",
+      "v1alpha1"
+    ],
+    "read_methods": 3
+  },
+  {
+    "name": "cloudsupport",
+    "default_version": "v2",
+    "versions": [
+      "v2",
+      "v2beta"
+    ],
+    "read_methods": 10
+  },
+  {
+    "name": "cloudtasks",
+    "default_version": "v2",
+    "versions": [
+      "v2",
+      "v2beta3",
+      "v2beta2"
+    ],
+    "read_methods": 10
+  },
+  {
+    "name": "cloudtrace",
+    "default_version": "v1",
+    "versions": [
+      "v2",
+      "v1",
+      "v2beta1"
+    ],
+    "read_methods": 2
+  },
+  {
+    "name": "composer",
+    "default_version": "v1",
+    "versions": [
+      "v1",
+      "v1beta1"
+    ],
+    "read_methods": 11
+  },
+  {
+    "name": "compute",
+    "default_version": "v1",
+    "versions": [
+      "v1",
+      "beta",
+      "alpha",
+      "preview"
+    ],
+    "read_methods": 459
+  },
+  {
+    "name": "config",
+    "default_version": "v1",
+    "versions": [
+      "v1"
+    ],
+    "read_methods": 26
+  },
+  {
+    "name": "connectors",
+    "default_version": "v1",
+    "versions": [
+      "v2",
+      "v1"
+    ],
+    "read_methods": 41
+  },
+  {
+    "name": "contactcenteraiplatform",
+    "default_version": "v1alpha1",
+    "versions": [
+      "v1alpha1"
+    ],
+    "read_methods": 7
+  },
+  {
+    "name": "contactcenterinsights",
+    "default_version": "v1",
+    "versions": [
+      "v1"
+    ],
+    "read_methods": 69
+  },
+  {
+    "name": "container",
+    "default_version": "v1",
+    "versions": [
+      "v1",
+      "v1beta1"
+    ],
+    "read_methods": 22
+  },
+  {
+    "name": "containeranalysis",
+    "default_version": "v1",
+    "versions": [
+      "v1",
+      "v1beta1",
+      "v1alpha1"
+    ],
+    "read_methods": 22
+  },
+  {
+    "name": "contentwarehouse",
+    "default_version": "v1",
+    "versions": [
+      "v1"
+    ],
+    "read_methods": 12
+  },
+  {
+    "name": "databasecenter",
+    "default_version": "v1beta",
+    "versions": [
+      "v1beta"
+    ],
+    "read_methods": 8
+  },
+  {
+    "name": "datacatalog",
+    "default_version": "v1",
+    "versions": [
+      "v1",
+      "v1beta1"
+    ],
+    "read_methods": 29
+  },
+  {
+    "name": "dataflow",
+    "default_version": "v1b3",
+    "versions": [
+      "v1b3"
+    ],
+    "read_methods": 27
+  },
+  {
+    "name": "dataform",
+    "default_version": "v1",
+    "versions": [
+      "v1",
+      "v1beta1"
+    ],
+    "read_methods": 44
+  },
+  {
+    "name": "datafusion",
+    "default_version": "v1",
+    "versions": [
+      "v1",
+      "v1beta1"
+    ],
+    "read_methods": 10
+  },
+  {
+    "name": "datalabeling",
+    "default_version": "v1beta1",
+    "versions": [
+      "v1beta1"
+    ],
+    "read_methods": 25
+  },
+  {
+    "name": "datalineage",
+    "default_version": "v1",
+    "versions": [
+      "v1"
+    ],
+    "read_methods": 13
+  },
+  {
+    "name": "datamigration",
+    "default_version": "v1",
+    "versions": [
+      "v1",
+      "v1beta1"
+    ],
+    "read_methods": 33
+  },
+  {
+    "name": "datapipelines",
+    "default_version": "v1",
+    "versions": [
+      "v1"
+    ],
+    "read_methods": 3
+  },
+  {
+    "name": "dataplex",
+    "default_version": "v1",
+    "versions": [
+      "v1"
+    ],
+    "read_methods": 108
+  },
+  {
+    "name": "dataproc",
+    "default_version": "v1",
+    "versions": [
+      "v1",
+      "v1beta2"
+    ],
+    "read_methods": 64
+  },
+  {
+    "name": "datastore",
+    "default_version": "v1",
+    "versions": [
+      "v1",
+      "v1beta3",
+      "v1beta1"
+    ],
+    "read_methods": 7
+  },
+  {
+    "name": "datastream",
+    "default_version": "v1",
+    "versions": [
+      "v1",
+      "v1alpha1"
+    ],
+    "read_methods": 16
+  },
+  {
+    "name": "deploymentmanager",
+    "default_version": "v2",
+    "versions": [
+      "v2",
+      "v2beta",
+      "alpha"
+    ],
+    "read_methods": 11
+  },
+  {
+    "name": "developerconnect",
+    "default_version": "v1",
+    "versions": [
+      "v1"
+    ],
+    "read_methods": 20
+  },
+  {
+    "name": "devicerun",
+    "default_version": "v1alpha",
+    "versions": [
+      "v1alpha"
+    ],
+    "read_methods": 10
+  },
+  {
+    "name": "dialogflow",
+    "default_version": "v2",
+    "versions": [
+      "v3",
+      "v2",
+      "v3beta1",
+      "v2beta1"
+    ],
+    "read_methods": 100
+  },
+  {
+    "name": "discoveryengine",
+    "default_version": "v1",
+    "versions": [
+      "v1",
+      "v1beta",
+      "v1alpha"
+    ],
+    "read_methods": 111
+  },
+  {
+    "name": "dlp",
+    "default_version": "v2",
+    "versions": [
+      "v2"
+    ],
+    "read_methods": 67
+  },
+  {
+    "name": "dns",
+    "default_version": "v1",
+    "versions": [
+      "v2",
+      "v1",
+      "v1beta2"
+    ],
+    "read_methods": 19
+  },
+  {
+    "name": "documentai",
+    "default_version": "v1",
+    "versions": [
+      "v1",
+      "v1beta3",
+      "v1beta2"
+    ],
+    "read_methods": 18
+  },
+  {
+    "name": "domains",
+    "default_version": "v1",
+    "versions": [
+      "v1",
+      "v1beta1",
+      "v1alpha2"
+    ],
+    "read_methods": 14
+  },
+  {
+    "name": "essentialcontacts",
+    "default_version": "v1",
+    "versions": [
+      "v1"
+    ],
+    "read_methods": 9
+  },
+  {
+    "name": "eventarc",
+    "default_version": "v1",
+    "versions": [
+      "v1",
+      "v1beta1"
+    ],
+    "read_methods": 36
+  },
+  {
+    "name": "file",
+    "default_version": "v1",
+    "versions": [
+      "v1",
+      "v1beta1"
+    ],
+    "read_methods": 10
+  },
+  {
+    "name": "firestore",
+    "default_version": "v1",
+    "versions": [
+      "v1",
+      "v1beta2",
+      "v1beta1"
+    ],
+    "read_methods": 25
+  },
+  {
+    "name": "ftp",
+    "default_version": "v1",
+    "versions": [
+      "v1",
+      "v1alpha"
+    ],
+    "read_methods": 8
+  },
+  {
+    "name": "gameservices",
+    "default_version": "v1",
+    "versions": [
+      "v1",
+      "v1beta"
+    ],
+    "read_methods": 6
+  },
+  {
+    "name": "genomics",
+    "default_version": "v1alpha2",
+    "versions": [
+      "v1",
+      "v2alpha1",
+      "v1alpha2"
+    ],
+    "read_methods": 5
+  },
+  {
+    "name": "gkebackup",
+    "default_version": "v1",
+    "versions": [
+      "v1"
+    ],
+    "read_methods": 38
+  },
+  {
+    "name": "gkehub",
+    "default_version": "v1",
+    "versions": [
+      "v2",
+      "v1",
+      "v2beta",
+      "v1beta1",
+      "v1beta",
+      "v2alpha",
+      "v1alpha2",
+      "v1alpha"
+    ],
+    "read_methods": 33
+  },
+  {
+    "name": "gkeonprem",
+    "default_version": "v1",
+    "versions": [
+      "v1"
+    ],
+    "read_methods": 43
+  },
+  {
+    "name": "healthcare",
+    "default_version": "v1",
+    "versions": [
+      "v1",
+      "v1beta1"
+    ],
+    "read_methods": 73
+  },
+  {
+    "name": "hypercomputecluster",
+    "default_version": "v1",
+    "versions": [
+      "v1"
+    ],
+    "read_methods": 6
+  },
+  {
+    "name": "iam",
+    "default_version": "v1",
+    "versions": [
+      "v2",
+      "v1",
+      "v2beta"
+    ],
+    "read_methods": 55
+  },
+  {
+    "name": "iamcredentials",
+    "default_version": "v1",
+    "versions": [
+      "v1"
+    ],
+    "read_methods": 3
+  },
+  {
+    "name": "iap",
+    "default_version": "v1",
+    "versions": [
+      "v1",
+      "v1beta1"
+    ],
+    "read_methods": 7
+  },
+  {
+    "name": "ideahub",
+    "default_version": "v1beta",
+    "versions": [
+      "v1beta",
+      "v1alpha"
+    ],
+    "read_methods": 2
+  },
+  {
+    "name": "identitytoolkit",
+    "default_version": "v2",
+    "versions": [
+      "v3",
+      "v2",
+      "v1"
+    ],
+    "read_methods": 20
+  },
+  {
+    "name": "ids",
+    "default_version": "v1",
+    "versions": [
+      "v1"
+    ],
+    "read_methods": 6
+  },
+  {
+    "name": "integrations",
+    "default_version": "v1",
+    "versions": [
+      "v1",
+      "v1alpha"
+    ],
+    "read_methods": 37
+  },
+  {
+    "name": "jobs",
+    "default_version": "v4",
+    "versions": [
+      "v4",
+      "v3",
+      "v2",
+      "v3p1beta1"
+    ],
+    "read_methods": 9
+  },
+  {
+    "name": "kmsinventory",
+    "default_version": "v1",
+    "versions": [
+      "v1"
+    ],
+    "read_methods": 4
+  },
+  {
+    "name": "language",
+    "default_version": "v2",
+    "versions": [
+      "v2",
+      "v1",
+      "v1beta2",
+      "v1beta1"
+    ],
+    "read_methods": 0
+  },
+  {
+    "name": "libraryagent",
+    "default_version": "v1",
+    "versions": [
+      "v1"
+    ],
+    "read_methods": 4
+  },
+  {
+    "name": "lifesciences",
+    "default_version": "v2beta",
+    "versions": [
+      "v2beta"
+    ],
+    "read_methods": 4
+  },
+  {
+    "name": "logging",
+    "default_version": "v2",
+    "versions": [
+      "v2"
+    ],
+    "read_methods": 119
+  },
+  {
+    "name": "looker",
+    "default_version": "v1",
+    "versions": [
+      "v1"
+    ],
+    "read_methods": 8
+  },
+  {
+    "name": "managedidentities",
+    "default_version": "v1",
+    "versions": [
+      "v1",
+      "v1beta1",
+      "v1alpha1"
+    ],
+    "read_methods": 20
+  },
+  {
+    "name": "managedkafka",
+    "default_version": "v1",
+    "versions": [
+      "v1"
+    ],
+    "read_methods": 48
+  },
+  {
+    "name": "memcache",
+    "default_version": "v1",
+    "versions": [
+      "v1",
+      "v1beta2"
+    ],
+    "read_methods": 7
+  },
+  {
+    "name": "metastore",
+    "default_version": "v1",
+    "versions": [
+      "v2",
+      "v1",
+      "v2beta",
+      "v1beta",
+      "v2alpha",
+      "v1alpha"
+    ],
+    "read_methods": 21
+  },
+  {
+    "name": "migrationcenter",
+    "default_version": "v1",
+    "versions": [
+      "v1",
+      "v1alpha1"
+    ],
+    "read_methods": 30
+  },
+  {
+    "name": "ml",
+    "default_version": "v1",
+    "versions": [
+      "v1"
+    ],
+    "read_methods": 21
+  },
+  {
+    "name": "monitoring",
+    "default_version": "v3",
+    "versions": [
+      "v3",
+      "v1"
+    ],
+    "read_methods": 28
+  },
+  {
+    "name": "netapp",
+    "default_version": "v1",
+    "versions": [
+      "v1",
+      "v1beta1"
+    ],
+    "read_methods": 28
+  },
+  {
+    "name": "networkconnectivity",
+    "default_version": "v1",
+    "versions": [
+      "v1",
+      "v1alpha1"
+    ],
+    "read_methods": 55
+  },
+  {
+    "name": "networkmanagement",
+    "default_version": "v1",
+    "versions": [
+      "v1",
+      "v1beta1"
+    ],
+    "read_methods": 26
+  },
+  {
+    "name": "networksecurity",
+    "default_version": "v1",
+    "versions": [
+      "v1",
+      "v1beta1"
+    ],
+    "read_methods": 83
+  },
+  {
+    "name": "networkservices",
+    "default_version": "v1",
+    "versions": [
+      "v1",
+      "v1beta1"
+    ],
+    "read_methods": 56
+  },
+  {
+    "name": "notebooks",
+    "default_version": "v1",
+    "versions": [
+      "v2",
+      "v1"
+    ],
+    "read_methods": 20
+  },
+  {
+    "name": "observability",
+    "default_version": "v1",
+    "versions": [
+      "v1"
+    ],
+    "read_methods": 26
+  },
+  {
+    "name": "ondemandscanning",
+    "default_version": "v1",
+    "versions": [
+      "v1",
+      "v1beta1"
+    ],
+    "read_methods": 3
+  },
+  {
+    "name": "oracledatabase",
+    "default_version": "v1",
+    "versions": [
+      "v1"
+    ],
+    "read_methods": 48
+  },
+  {
+    "name": "orgpolicy",
+    "default_version": "v2",
+    "versions": [
+      "v2"
+    ],
+    "read_methods": 14
+  },
+  {
+    "name": "osconfig",
+    "default_version": "v1",
+    "versions": [
+      "v2",
+      "v1",
+      "v2beta",
+      "v1beta",
+      "v1alpha"
+    ],
+    "read_methods": 16
+  },
+  {
+    "name": "oslogin",
+    "default_version": "v1",
+    "versions": [
+      "v1",
+      "v1beta",
+      "v1alpha"
+    ],
+    "read_methods": 2
+  },
+  {
+    "name": "parallelstore",
+    "default_version": "v1",
+    "versions": [
+      "v1",
+      "v1beta"
+    ],
+    "read_methods": 6
+  },
+  {
+    "name": "parametermanager",
+    "default_version": "v1",
+    "versions": [
+      "v1"
+    ],
+    "read_methods": 10
+  },
+  {
+    "name": "policyanalyzer",
+    "default_version": "v1",
+    "versions": [
+      "v1",
+      "v1beta1"
+    ],
+    "read_methods": 3
+  },
+  {
+    "name": "policysimulator",
+    "default_version": "v1",
+    "versions": [
+      "v1",
+      "v1beta1",
+      "v1beta",
+      "v1alpha"
+    ],
+    "read_methods": 23
+  },
+  {
+    "name": "policytroubleshooter",
+    "default_version": "v3",
+    "versions": [
+      "v3",
+      "v1",
+      "v3beta",
+      "v1beta"
+    ],
+    "read_methods": 1
+  },
+  {
+    "name": "privateca",
+    "default_version": "v1",
+    "versions": [
+      "v1",
+      "v1beta1"
+    ],
+    "read_methods": 22
+  },
+  {
+    "name": "prod_tt_sasportal",
+    "default_version": "v1alpha1",
+    "versions": [
+      "v1alpha1"
+    ],
+    "read_methods": 28
+  },
+  {
+    "name": "publicca",
+    "default_version": "v1",
+    "versions": [
+      "v1",
+      "v1beta1",
+      "v1alpha1"
+    ],
+    "read_methods": 0
+  },
+  {
+    "name": "pubsub",
+    "default_version": "v1",
+    "versions": [
+      "v1",
+      "v1beta2",
+      "v1beta1a"
+    ],
+    "read_methods": 19
+  },
+  {
+    "name": "pubsublite",
+    "default_version": "v1",
+    "versions": [
+      "v1"
+    ],
+    "read_methods": 12
+  },
+  {
+    "name": "rapidmigrationassessment",
+    "default_version": "v1",
+    "versions": [
+      "v1"
+    ],
+    "read_methods": 7
+  },
+  {
+    "name": "recaptchaenterprise",
+    "default_version": "v1",
+    "versions": [
+      "v1"
+    ],
+    "read_methods": 10
+  },
+  {
+    "name": "recommendationengine",
+    "default_version": "v1beta1",
+    "versions": [
+      "v1beta1"
+    ],
+    "read_methods": 8
+  },
+  {
+    "name": "recommender",
+    "default_version": "v1",
+    "versions": [
+      "v1",
+      "v1beta1"
+    ],
+    "read_methods": 22
+  },
+  {
+    "name": "redis",
+    "default_version": "v1",
+    "versions": [
+      "v1",
+      "v1beta1"
+    ],
+    "read_methods": 20
+  },
+  {
+    "name": "remotebuildexecution",
+    "default_version": "v2",
+    "versions": [
+      "v2",
+      "v1",
+      "v1alpha"
+    ],
+    "read_methods": 3
+  },
+  {
+    "name": "resourcesettings",
+    "default_version": "v1",
+    "versions": [
+      "v1"
+    ],
+    "read_methods": 6
+  },
+  {
+    "name": "retail",
+    "default_version": "v2",
+    "versions": [
+      "v2",
+      "v2beta",
+      "v2alpha"
+    ],
+    "read_methods": 22
+  },
+  {
+    "name": "run",
+    "default_version": "v1",
+    "versions": [
+      "v2",
+      "v1",
+      "v1beta1",
+      "v1alpha1"
+    ],
+    "read_methods": 44
+  },
+  {
+    "name": "runtimeconfig",
+    "default_version": "v1",
+    "versions": [
+      "v1",
+      "v1beta1"
+    ],
+    "read_methods": 1
+  },
+  {
+    "name": "saasservicemgmt",
+    "default_version": "v1",
+    "versions": [
+      "v1",
+      "v1beta1"
+    ],
+    "read_methods": 18
+  },
+  {
+    "name": "sasportal",
+    "default_version": "v1alpha1",
+    "versions": [
+      "v1alpha1"
+    ],
+    "read_methods": 28
+  },
+  {
+    "name": "secretmanager",
+    "default_version": "v1",
+    "versions": [
+      "v1",
+      "v1beta2",
+      "v1beta1"
+    ],
+    "read_methods": 14
+  },
+  {
+    "name": "securesourcemanager",
+    "default_version": "v1",
+    "versions": [
+      "v1"
+    ],
+    "read_methods": 27
+  },
+  {
+    "name": "securitycenter",
+    "default_version": "v1",
+    "versions": [
+      "v1",
+      "v1beta2",
+      "v1beta1"
+    ],
+    "read_methods": 77
+  },
+  {
+    "name": "securityposture",
+    "default_version": "v1",
+    "versions": [
+      "v1"
+    ],
+    "read_methods": 13
+  },
+  {
+    "name": "serviceconsumermanagement",
+    "default_version": "v1",
+    "versions": [
+      "v1",
+      "v1beta1"
+    ],
+    "read_methods": 4
+  },
+  {
+    "name": "servicecontrol",
+    "default_version": "v2",
+    "versions": [
+      "v2",
+      "v1"
+    ],
+    "read_methods": 1
+  },
+  {
+    "name": "servicedirectory",
+    "default_version": "v1",
+    "versions": [
+      "v1",
+      "v1beta1"
+    ],
+    "read_methods": 12
+  },
+  {
+    "name": "servicemanagement",
+    "default_version": "v1",
+    "versions": [
+      "v1"
+    ],
+    "read_methods": 13
+  },
+  {
+    "name": "servicenetworking",
+    "default_version": "v1",
+    "versions": [
+      "v1",
+      "v1beta"
+    ],
+    "read_methods": 10
+  },
+  {
+    "name": "serviceusage",
+    "default_version": "v1",
+    "versions": [
+      "v1",
+      "v1beta1"
+    ],
+    "read_methods": 5
+  },
+  {
+    "name": "sourcerepo",
+    "default_version": "v1",
+    "versions": [
+      "v1"
+    ],
+    "read_methods": 5
+  },
+  {
+    "name": "spanner",
+    "default_version": "v1",
+    "versions": [
+      "v1"
+    ],
+    "read_methods": 43
+  },
+  {
+    "name": "speech",
+    "default_version": "v1",
+    "versions": [
+      "v1",
+      "v2beta1",
+      "v1p1beta1"
+    ],
+    "read_methods": 6
+  },
+  {
+    "name": "sqladmin",
+    "default_version": "v1",
+    "versions": [
+      "v1",
+      "v1beta4"
+    ],
+    "read_methods": 26
+  },
+  {
+    "name": "storage",
+    "default_version": "v1",
+    "versions": [
+      "v1"
+    ],
+    "read_methods": 32
+  },
+  {
+    "name": "storagebatchoperations",
+    "default_version": "v1",
+    "versions": [
+      "v1"
+    ],
+    "read_methods": 8
+  },
+  {
+    "name": "storagetransfer",
+    "default_version": "v1",
+    "versions": [
+      "v1"
+    ],
+    "read_methods": 7
+  },
+  {
+    "name": "sts",
+    "default_version": "v1",
+    "versions": [
+      "v1",
+      "v1beta"
+    ],
+    "read_methods": 4
+  },
+  {
+    "name": "testing",
+    "default_version": "v1",
+    "versions": [
+      "v1"
+    ],
+    "read_methods": 5
+  },
+  {
+    "name": "texttospeech",
+    "default_version": "v1",
+    "versions": [
+      "v1",
+      "v1beta1"
+    ],
+    "read_methods": 3
+  },
+  {
+    "name": "threatintelligence",
+    "default_version": "v1beta",
+    "versions": [
+      "v1beta"
+    ],
+    "read_methods": 10
+  },
+  {
+    "name": "toolresults",
+    "default_version": "v1beta3",
+    "versions": [
+      "v1beta3"
+    ],
+    "read_methods": 19
+  },
+  {
+    "name": "tpu",
+    "default_version": "v2",
+    "versions": [
+      "v2",
+      "v1",
+      "v2alpha1",
+      "v1alpha1"
+    ],
+    "read_methods": 13
+  },
+  {
+    "name": "trafficdirector",
+    "default_version": "v3",
+    "versions": [
+      "v3",
+      "v2"
+    ],
+    "read_methods": 0
+  },
+  {
+    "name": "transcoder",
+    "default_version": "v1",
+    "versions": [
+      "v1",
+      "v1beta1"
+    ],
+    "read_methods": 4
+  },
+  {
+    "name": "translate",
+    "default_version": "v3",
+    "versions": [
+      "v3",
+      "v2",
+      "v3beta1"
+    ],
+    "read_methods": 21
+  },
+  {
+    "name": "videointelligence",
+    "default_version": "v1",
+    "versions": [
+      "v1",
+      "v1beta2",
+      "v1p3beta1",
+      "v1p2beta1",
+      "v1p1beta1"
+    ],
+    "read_methods": 3
+  },
+  {
+    "name": "vision",
+    "default_version": "v1",
+    "versions": [
+      "v1",
+      "v1p2beta1",
+      "v1p1beta1"
+    ],
+    "read_methods": 12
+  },
+  {
+    "name": "vmmigration",
+    "default_version": "v1",
+    "versions": [
+      "v1",
+      "v1alpha1"
+    ],
+    "read_methods": 30
+  },
+  {
+    "name": "vmwareengine",
+    "default_version": "v1",
+    "versions": [
+      "v1"
+    ],
+    "read_methods": 47
+  },
+  {
+    "name": "vpcaccess",
+    "default_version": "v1",
+    "versions": [
+      "v1",
+      "v1beta1"
+    ],
+    "read_methods": 5
+  },
+  {
+    "name": "webrisk",
+    "default_version": "v1",
+    "versions": [
+      "v1"
+    ],
+    "read_methods": 5
+  },
+  {
+    "name": "websecurityscanner",
+    "default_version": "v1",
+    "versions": [
+      "v1",
+      "v1beta",
+      "v1alpha"
+    ],
+    "read_methods": 8
+  },
+  {
+    "name": "workflowexecutions",
+    "default_version": "v1",
+    "versions": [
+      "v1",
+      "v1beta"
+    ],
+    "read_methods": 6
+  },
+  {
+    "name": "workflows",
+    "default_version": "v1",
+    "versions": [
+      "v1",
+      "v1beta"
+    ],
+    "read_methods": 7
+  },
+  {
+    "name": "workloadmanager",
+    "default_version": "v1",
+    "versions": [
+      "v1"
+    ],
+    "read_methods": 18
+  },
+  {
+    "name": "workstations",
+    "default_version": "v1",
+    "versions": [
+      "v1",
+      "v1beta"
+    ],
+    "read_methods": 16
+  }
+]
