@@ -356,6 +356,18 @@ async def test_a_network_failure_is_a_tool_error_that_says_to_retry(error: Excep
 
 
 @pytest.mark.anyio
+async def test_a_network_failure_while_refreshing_credentials_says_to_retry() -> None:
+    error = google.auth.exceptions.TransportError("connection reset")
+    server = Google(credentials=BrokenCredentials(error))
+    text = await refusal(
+        "gcp_call", {"service": "compute", "method": "instances.get", "args": VM}, server
+    )
+    assert "compute" in text
+    assert "retry" in text.lower()
+    assert server.requests == []
+
+
+@pytest.mark.anyio
 @pytest.mark.parametrize(
     "error",
     [
