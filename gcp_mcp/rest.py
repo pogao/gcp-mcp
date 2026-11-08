@@ -7,17 +7,22 @@ into `setIamPolicy` with the caller's body. Firestore and Datastore reads also a
 that opens a read-write transaction, which `prepare` refuses.
 """
 
+import asyncio
 import json
 import re
 from collections.abc import Callable, Iterator, Mapping
 from dataclasses import dataclass
 from http.client import responses
-from typing import Any, Literal
+from typing import Any, Literal, Protocol
 
+import google.auth
+import google.auth.credentials
+import httpx2
 import uritemplate
+from google.auth.transport.requests import Request
 
-from gcp_mcp.discovery import Param, ReadMethod
-from gcp_mcp.errors import BadArguments, GcpApiError
+from gcp_mcp.discovery import CLOUD_PLATFORM_SCOPE, Param, ReadMethod, Registry
+from gcp_mcp.errors import BadArguments, GcpApiError, UnsupportedResponse
 from gcp_mcp.policy import REDACTED_FIELDS
 
 GLOBAL_PARAMS = frozenset(
@@ -68,6 +73,99 @@ class PreparedRequest:
     url: str
     query: tuple[tuple[str, str], ...]
     body: bytes | None
+
+
+@dataclass(frozen=True, slots=True)
+class CallResult:
+    service: str
+    version: str
+    method: str
+    response: Any
+    next_page_token: str | None
+    truncated: bool
+    omitted_items: int
+    redacted_fields: int
+
+
+class CredentialSource(Protocol):
+    async def headers(self) -> Mapping[str, str]: ...
+
+
+class AdcCredentials:
+    def __init__(self) -> None:
+        self._credentials: google.auth.credentials.Credentials | None = None
+        self._lock = asyncio.Lock()
+
+    async def headers(self) -> Mapping[str, str]:
+        async with self._lock:
+            if self._credentials is None:
+                self._credentials, _ = await asyncio.to_thread(
+                    google.auth.default, scopes=[CLOUD_PLATFORM_SCOPE]
+                )
+            if not self._credentials.valid:
+                await asyncio.to_thread(self._credentials.refresh, Request())
+            headers: dict[str, str] = {}
+            self._credentials.apply(headers)
+        return headers
+
+
+class StaticCredentials:
+    def __init__(self, token: str) -> None:
+        self._token = token
+
+    async def headers(self) -> Mapping[str, str]:
+        return {"authorization": f"Bearer {self._token}"}
+
+
+@dataclass(frozen=True, slots=True)
+class Gcp:
+    registry: Registry
+    limits: Limits
+    credentials: CredentialSource
+    http: httpx2.AsyncClient
+
+    async def call(
+        self,
+        service: str,
+        method: str,
+        args: Mapping[str, object] | None = None,
+        body: Mapping[str, object] | None = None,
+        version: str | None = None,
+    ) -> CallResult:
+        read_method = self.registry.method(service, method, version)
+        schemas = self.registry.service(service, read_method.version).schemas
+        request = prepare(read_method, args or {}, body, self.limits, schemas)
+        headers = dict(await self.credentials.headers())
+        if request.body is not None:
+            headers["content-type"] = "application/json"
+        response = await self.http.request(
+            request.method,
+            request.url,
+            params=request.query,
+            content=request.body,
+            headers=headers,
+            timeout=self.limits.request_timeout_s,
+        )
+        if not response.is_success:
+            raise parse_error(response.status_code, response.content)
+        try:
+            payload = json.loads(response.content)
+        except ValueError:
+            kind = response.headers.get("content-type", "untyped")
+            raise UnsupportedResponse(f"the response is {kind}, not JSON") from None
+        payload, redacted = redact(payload)
+        payload, omitted = bound(payload, self.limits.max_response_bytes)
+        token = payload.get("nextPageToken") if isinstance(payload, dict) else None
+        return CallResult(
+            service=read_method.service,
+            version=read_method.version,
+            method=read_method.name,
+            response=payload,
+            next_page_token=token if isinstance(token, str) else None,
+            truncated=omitted > 0,
+            omitted_items=omitted,
+            redacted_fields=redacted,
+        )
 
 
 def prepare(
