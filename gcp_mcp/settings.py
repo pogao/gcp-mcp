@@ -68,8 +68,20 @@ class Settings(BaseSettings):
     @classmethod
     def split_list(cls, value: object) -> object:
         if isinstance(value, str):
-            return [item for part in value.split(",") if (item := part.strip())]
+            return [part.strip() for part in value.split(",")] if value.strip() else []
         return value
+
+    @field_validator("auth_required_scopes", "auth_allowed_subjects")
+    @classmethod
+    def check_entries(cls, entries: list[str]) -> list[str]:
+        for position, entry in enumerate(entries, start=1):
+            if not entry:
+                raise PydanticCustomError(
+                    "empty_entry",
+                    "entry {position} is empty; remove the extra comma",
+                    {"position": position},
+                )
+        return entries
 
     @field_validator("auth_required_scopes")
     @classmethod
@@ -83,17 +95,6 @@ class Settings(BaseSettings):
                     {"scope": repr(scope)},
                 )
         return scopes
-
-    @field_validator("auth_allowed_subjects")
-    @classmethod
-    def check_subjects(cls, subjects: list[str]) -> list[str]:
-        if "" in subjects:
-            raise PydanticCustomError(
-                "subject",
-                "an allowed subject cannot be empty. Give a comma-separated list of sub or "
-                "email claims",
-            )
-        return subjects
 
     @field_validator("auth_public_key")
     @classmethod
