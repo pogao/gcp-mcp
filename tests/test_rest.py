@@ -3,8 +3,8 @@ import json
 import pytest
 
 from gcp_mcp.discovery import CLOUD_PLATFORM_SCOPE, ReadMethod, Registry, parse_service
-from gcp_mcp.errors import BadArguments
-from gcp_mcp.rest import Limits, PreparedRequest, bound, prepare, redact
+from gcp_mcp.errors import BadArguments, GcpApiError
+from gcp_mcp.rest import Limits, PreparedRequest, bound, parse_error, prepare, redact
 
 REGISTRY = Registry()
 LIMITS = Limits(default_page_size=100, max_response_bytes=100_000, request_timeout_s=30.0)
@@ -510,3 +510,69 @@ def test_redact_counts_every_secret_in_a_list() -> None:
         "items": [{"privateKey": "[redacted]"}, {"privateKey": "[redacted]"}, {"name": "x"}]
     }
     assert count == 2
+
+
+def test_parse_error_reads_the_google_error_envelope() -> None:
+    info = {
+        "@type": "type.googleapis.com/google.rpc.ErrorInfo",
+        "reason": "SERVICE_DISABLED",
+        "domain": "googleapis.com",
+        "metadata": {"service": "compute.googleapis.com"},
+    }
+    envelope = {
+        "error": {
+            "code": 403,
+            "message": "Compute Engine API has not been used in project example-project.",
+            "status": "PERMISSION_DENIED",
+            "details": [info],
+        }
+    }
+    error = parse_error(403, json.dumps(envelope).encode())
+    assert isinstance(error, GcpApiError)
+    assert (error.status, error.reason, error.message, error.details) == (
+        403,
+        "PERMISSION_DENIED",
+        "Compute Engine API has not been used in project example-project.",
+        (info,),
+    )
+
+
+def test_parse_error_falls_back_to_the_legacy_reason() -> None:
+    envelope = {
+        "error": {
+            "code": 404,
+            "message": "The resource 'projects/example-project/zones/us-central1-a/instances/vm-1' "
+            "was not found",
+            "errors": [{"message": "not found", "domain": "global", "reason": "notFound"}],
+        }
+    }
+    error = parse_error(404, json.dumps(envelope).encode())
+    assert (error.status, error.reason) == (404, "notFound")
+    assert "vm-1" in error.message
+    assert error.details == ()
+
+
+@pytest.mark.parametrize(
+    ("status", "body", "reason", "message"),
+    [
+        (
+            502,
+            b"<html>upstream connect error</html>",
+            "Bad Gateway",
+            "<html>upstream connect error</html>",
+        ),
+        (503, b"", "Service Unavailable", "Service Unavailable"),
+        (500, b'["not", "an", "envelope"]', "Internal Server Error", '["not", "an", "envelope"]'),
+        (500, b"\xff\xfe broken", "Internal Server Error", "\ufffd\ufffd broken"),
+    ],
+)
+def test_parse_error_falls_back_to_the_status_phrase_and_the_text(
+    status: int, body: bytes, reason: str, message: str
+) -> None:
+    error = parse_error(status, body)
+    assert (error.status, error.reason, error.message) == (status, reason, message)
+
+
+def test_parse_error_keeps_a_long_plain_body_short() -> None:
+    error = parse_error(500, b"x" * 5000)
+    assert error.message == "x" * 200
