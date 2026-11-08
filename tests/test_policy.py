@@ -62,8 +62,7 @@ POST_READ_NAME = re.compile(
 )
 
 CREDENTIAL_NOUNS = frozenset(
-    {"secret", "password", "passwords", "passwd", "passphrase", "credential", "jwt", "psk", "pin"}
-    | {"cak", "hmac", "otp"}
+    "secret password passwords passwd passphrase credential jwt psk pin cak hmac otp".split()
 )
 KEY_KINDS = frozenset(
     """
