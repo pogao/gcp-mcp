@@ -13,10 +13,22 @@ dependencies = [
     "structlog>=26.1.0",
     "google-cloud-storage>=3.17.1",
     "google-cloud-resource-manager>=1.19.0",
+    "pydantic-settings>=2.16.0",
 ]
+
+[project.scripts]
+gcp-mcp = "gcp_mcp.__main__:main"
+
+[build-system]
+requires = ["uv_build>=0.13.7,<0.14.0"]
+build-backend = "uv_build"
+
+[tool.uv.build-backend]
+module-root = ""
 
 [dependency-groups]
 dev = [
+    "httpx2>=2.14.0",
     "pytest>=9.2",
     "ruff>=0.17",
 ]
@@ -37,3 +49,4 @@ select = ["E", "F", "I", "UP", "B"]
 
 [tool.ruff.lint.isort]
 combine-as-imports = true
+known-first-party = ["gcp_mcp"]
