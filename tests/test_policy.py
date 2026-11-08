@@ -10,6 +10,7 @@ from tests.corpus import CorpusMethod, bundled_methods
 
 GET_NOT_A_READ = "GET whose name is not a read verb; some GET methods mutate"
 SECRETS = "reveals credentials or secrets"
+INFERENCE = "runs model inference and stores results"
 
 WRITE_WORDS = frozenset(
     """
@@ -89,6 +90,11 @@ KNOWN_WRITES = (
     "ml.projects.locations.studies.trials.checkEarlyStoppingState",
     "notebooks.projects.locations.instances.checkAuthorization",
     "discoveryengine.projects.locations.groundingConfigs.check",
+    "discoveryengine.projects.locations.dataStores.servingConfigs.search",
+    "discoveryengine.projects.locations.collections.engines.servingConfigs.searchLite",
+    "retail.projects.locations.catalogs.servingConfigs.search",
+    "retail.projects.locations.catalogs.placements.search",
+    "dialogflow.projects.locations.suggestions.searchKnowledge",
 )
 
 KNOWN_SECRETS = (
@@ -182,6 +188,17 @@ KNOWN_READS = (
             ("bigquery.jobs.query", "POST", True, "QueryResponse", "bigquery.jobs"),
             Excluded(DENY["bigquery.jobs.query"]),
             id="DENY",
+        ),
+        pytest.param(
+            (
+                "discoveryengine.projects.locations.dataStores.servingConfigs.search",
+                "POST",
+                True,
+                "GoogleCloudDiscoveryengineV1SearchResponse",
+                "discoveryengine.projects.locations.dataStores.servingConfigs",
+            ),
+            Excluded(INFERENCE),
+            id="DENY_PATTERNS",
         ),
         pytest.param(
             ("logging.entries.list", "POST", True, "ListLogEntriesResponse", "logging.entries"),
