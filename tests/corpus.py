@@ -1,10 +1,8 @@
-import json
 from collections.abc import Iterator, Mapping
 from functools import cache
-from importlib.resources import files
 from typing import Any, NamedTuple
 
-DOCUMENTS = files("googleapiclient") / "discovery_cache" / "documents"
+from gcp_mcp.discovery import BundledCorpus, walk_methods
 
 
 class CorpusMethod(NamedTuple):
@@ -17,26 +15,20 @@ class CorpusMethod(NamedTuple):
 
 def bundled_documents() -> Iterator[tuple[Mapping[str, Any], tuple[CorpusMethod, ...]]]:
     """Yield each bundled document's schemas with its methods, one document at a time."""
-    for document in sorted(DOCUMENTS.iterdir(), key=lambda path: path.name):
-        if not document.name.endswith(".json") or document.name == "index.json":
-            continue
-        parsed = json.loads(document.read_bytes())
-        methods = []
-        nodes = [parsed]
-        while nodes:
-            node = nodes.pop()
-            nodes.extend(node.get("resources", {}).values())
-            for raw in node.get("methods", {}).values():
-                methods.append(
-                    CorpusMethod(
-                        id=raw["id"],
-                        http_method=raw["httpMethod"],
-                        has_request_body="request" in raw,
-                        response_schema=raw.get("response", {}).get("$ref"),
-                        resource=raw["id"].rpartition(".")[0],
-                    )
-                )
-        yield parsed.get("schemas", {}), tuple(methods)
+    corpus = BundledCorpus()
+    for name, version in corpus.names():
+        document = corpus.load(name, version)
+        methods = tuple(
+            CorpusMethod(
+                id=raw["id"],
+                http_method=raw["httpMethod"],
+                has_request_body="request" in raw,
+                response_schema=raw.get("response", {}).get("$ref"),
+                resource=raw["id"].rpartition(".")[0],
+            )
+            for raw in walk_methods(document)
+        )
+        yield document.get("schemas", {}), methods
 
 
 @cache
