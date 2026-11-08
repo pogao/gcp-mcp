@@ -1,8 +1,10 @@
 import asyncio
 import ipaddress
-from collections.abc import Sequence
+import time
+from collections.abc import Mapping, Sequence
 from concurrent.futures import ThreadPoolExecutor
 from importlib.metadata import version
+from typing import Any
 
 import fastmcp
 import structlog
@@ -18,6 +20,7 @@ from gcp_mcp.settings import MCP_PATH, HttpConfig, ServerConfig, Settings, Stdio
 from gcp_mcp.tools import read_only_tool
 
 STATELESS_HTTP = True
+IAT_LEEWAY_S = 300
 
 INSTRUCTIONS = """\
 Read-only access to Google Cloud. This server cannot create, change, or delete
@@ -71,9 +74,18 @@ def auth_provider(config: ServerConfig) -> RemoteAuthProvider | None:
 class ExpiringJWTVerifier(JWTVerifier):
     async def verify_token(self, token: str) -> AccessToken | None:
         access = await super().verify_token(token)
-        if access is None or access.expires_at is None:
+        if access is None or access.expires_at is None or not_yet_valid(access.claims):
             return None
         return access
+
+
+def not_yet_valid(claims: Mapping[str, Any]) -> bool:
+    now = time.time()
+    for name, leeway in (("nbf", 0), ("iat", IAT_LEEWAY_S)):
+        start = claims.get(name, now)
+        if not isinstance(start, int | float) or start > now + leeway:
+            return True
+    return False
 
 
 def http_app(server: FastMCP) -> StarletteWithLifespan:
