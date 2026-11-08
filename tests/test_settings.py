@@ -157,7 +157,6 @@ def test_auth_settings_without_require_auth_are_refused(field, value):
         pytest.param("gcp:read gcp:list", id="space separated"),
         pytest.param('gcp:"read"', id="double quote"),
         pytest.param("gcp:read\\list", id="backslash"),
-        pytest.param(["gcp:read", ""], id="empty entry"),
     ],
 )
 def test_a_scope_outside_the_rfc_6749_grammar_is_refused(scopes):
@@ -165,11 +164,30 @@ def test_a_scope_outside_the_rfc_6749_grammar_is_refused(scopes):
         Settings(**AUTH, auth_required_scopes=scopes)
 
 
-def test_an_empty_allowed_subject_is_refused():
-    subjects = ["reader@example-project.iam.gserviceaccount.com", ""]
+@pytest.mark.parametrize("field", ["auth_required_scopes", "auth_allowed_subjects"])
+@pytest.mark.parametrize(
+    ("value", "message"),
+    [
+        pytest.param(",,", "entry 1 is empty; remove", id="only commas"),
+        pytest.param(" a , ", "entry 2 is empty; remove", id="trailing comma"),
+        pytest.param(["a", ""], "entry 2 is empty; remove", id="python list"),
+    ],
+)
+def test_an_empty_list_entry_is_refused(field, value, message):
+    with pytest.raises(ValidationError, match=message):
+        Settings(**AUTH, **{field: value})
 
-    with pytest.raises(ValidationError, match="empty"):
-        Settings(**AUTH, auth_allowed_subjects=subjects)
+
+@pytest.mark.parametrize("field", ["auth_required_scopes", "auth_allowed_subjects"])
+@pytest.mark.parametrize(
+    ("value", "entries"),
+    [
+        pytest.param("a, b", ["a", "b"], id="spaces around the comma"),
+        pytest.param("", [], id="empty string"),
+    ],
+)
+def test_a_list_setting_splits_on_commas(field, value, entries):
+    assert getattr(Settings(**AUTH, **{field: value}), field) == entries
 
 
 def test_a_public_key_keeps_its_pem_text():
