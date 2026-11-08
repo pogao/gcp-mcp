@@ -97,9 +97,49 @@ The same run with environment variables:
 GCP_MCP_TRANSPORT=http GCP_MCP_PORT=8888 uv run gcp-mcp
 ```
 
-`GET /healthz` returns `OK`. Logs are JSON lines on stderr, except for the `Starting MCP server` message that fastmcp prints first. Run `uv run gcp-mcp --help` to list every flag.
+`GET /healthz` returns `OK`. Logs are JSON lines on stderr. Run `uv run gcp-mcp --help` to list every flag.
 
-The HTTP transport has no authentication yet. Keep `--host` on a loopback address.
+Without `--require-auth`, the HTTP transport accepts every request. Keep `--host` on a loopback address in that case.
+
+#### Require authentication
+
+To make the HTTP transport require a bearer token, add `--require-auth` and name the token issuer and its keys:
+
+```bash
+uv run gcp-mcp --transport http --host 0.0.0.0 --port 8888 \
+	--require-auth \
+	--base-url https://mcp.example.com \
+	--auth-issuer https://issuer.example.com \
+	--auth-jwks-uri https://issuer.example.com/.well-known/jwks.json \
+	--auth-required-scopes gcp:read
+```
+
+Any OAuth 2.1 or OpenID Connect issuer that signs RS256 JWTs works. The server admits every token that the issuer signs for this audience, so the issuer decides who gets in. Use an issuer that you control and that gives such tokens only to clients you approve.
+
+Do not use Google as the issuer. Google signs an ID token for any service account in any project, with any audience the caller names. With `--auth-issuer https://accounts.google.com`, any Google service account could call this server and read your Google Cloud through it.
+
+| Flag | Environment variable | Meaning |
+| --- | --- | --- |
+| `--require-auth` | `GCP_MCP_REQUIRE_AUTH=true` | Require a valid bearer token on every MCP request. Needs `--transport http`. |
+| `--base-url` | `GCP_MCP_BASE_URL` | The public URL of the server, without `/mcp`. |
+| `--auth-issuer` | `GCP_MCP_AUTH_ISSUER` | The `iss` claim that every token must carry. |
+| `--auth-jwks-uri` | `GCP_MCP_AUTH_JWKS_URI` | The issuer's JSON Web Key Set. Set this or a public key, not both. |
+| Environment only | `GCP_MCP_AUTH_PUBLIC_KEY` | The issuer's RSA public key as PEM text. The command line cannot carry PEM text. |
+| `--auth-audience` | `GCP_MCP_AUTH_AUDIENCE` | The `aud` claim that every token must carry. The default is the base URL plus `/mcp`. |
+| `--auth-required-scopes` | `GCP_MCP_AUTH_REQUIRED_SCOPES` | Scopes that every token must carry, separated by commas. |
+
+With `--require-auth`, the server does the following:
+
+- It answers a `POST` to `/mcp` without a valid token with `401` and a `WWW-Authenticate` header that points to `https://mcp.example.com/.well-known/oauth-protected-resource/mcp`. `GET /healthz` needs no token.
+- It serves that RFC 9728 metadata document. The document names the issuer as the authorization server and `https://mcp.example.com/mcp` as the resource.
+- It accepts a token only when the signature is valid, `iss` and `aud` match, the required scopes are present, `exp` is in the future, and `nbf`, if present, is not. A token without `exp` is refused, and so is one whose `iat` is more than five minutes in the future.
+- A token without a required scope gets `401`, not `403`, in fastmcp 4.1.6.
+
+If a setting is missing or does not fit, `gcp-mcp` exits with code 2 and names the setting on stderr.
+
+The server uses a client token only to decide whether to serve the request. It calls Google Cloud with its own Application Default Credentials and never forwards a client token to Google.
+
+The MCP specification says that a stdio server should not use protocol authentication. Over stdio, the server runs with the credentials of the operator who starts it, so `--require-auth` with stdio exits with code 2.
 
 ### Connect Claude Desktop or Claude Code
 
