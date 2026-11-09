@@ -204,7 +204,7 @@ uv run python -m scripts.golden --check
 uv run python -m scripts.golden --write
 ```
 
-The catalog comes from the discovery documents in the installed `google-api-python-client`, so new Google Cloud services arrive with a new version of that package. Dependabot checks for that upgrade every week and opens it as a pull request. To upgrade by hand:
+The catalog comes from the discovery documents in the installed `google-api-python-client`, so new Google Cloud services arrive with a new version of that package. Dependabot checks for that upgrade every week and opens it as a pull request. That pull request turns the golden tests red on purpose, because the goldens still describe the old corpus. Check out the Dependabot branch, run `uv run python -m scripts.golden --write`, and review the diff. The diff of `tests/golden/policy.json` shows each POST that the policy newly admits and each GET that it newly refuses. The diff of `tests/golden/read_methods.txt` shows each method that appears or disappears. Commit the goldens to the pull request. That diff is the security review of each catalog update. To upgrade by hand:
 
 1. Run `uv lock --upgrade-package google-api-python-client`.
 2. Run `uv sync --group dev`.

@@ -83,5 +83,5 @@ Before the policy and the executor merged, an independent reviewer mutated each 
 - `bound` caps the response that the model gets, not the bytes that the server reads from Google.
 - A token without a required scope gets 401, not 403, in fastmcp 4.1.6.
 - GET on `/mcp` returns 405, because the transport is stateless.
-- The catalog is pinned to the installed `google-api-python-client`. New services arrive through a dependency bump that regenerates the goldens.
+- The catalog is pinned to the installed `google-api-python-client`. New services arrive through a dependency bump, and the bump turns the golden tests red on purpose. A maintainer regenerates the goldens with `uv run python -m scripts.golden --write` and reviews the diff. `policy.json` shows the newly admitted POSTs and the newly refused GETs, and `read_methods.txt` shows the changed methods. The maintainer commits them, and that diff is the security review of each catalog update.
 - A request body may use camelCase or snake_case field names. `prepare` validates both against the schema.
