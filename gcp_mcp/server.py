@@ -110,9 +110,11 @@ def refusal(claims: Mapping[str, Any], allowed_subjects: tuple[str, ...]) -> str
         return "token refused: nbf has not passed"
     if not starts_by(claims.get("iat"), now + IAT_LEEWAY_S):
         return "token refused: iat is too far ahead"
-    identities = (claims.get("sub"), claims.get("email"))
-    if allowed_subjects and not any(identity in allowed_subjects for identity in identities):
-        return "token refused: subject is not allowed"
+    if allowed_subjects and claims.get("sub") not in allowed_subjects:
+        if claims.get("email") not in allowed_subjects:
+            return "token refused: subject is not allowed"
+        if claims.get("email_verified") is not True:
+            return "token refused: email is not verified"
     return None
 
 

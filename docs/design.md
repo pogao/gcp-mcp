@@ -55,7 +55,7 @@ In [`gcp_mcp/rest.py`](../gcp_mcp/rest.py), `prepare` is the only code that cons
 
 With `--require-auth` over HTTP, the server is an OAuth resource server as the MCP authorization specification describes. [`gcp_mcp/server.py`](../gcp_mcp/server.py) builds a fastmcp `RemoteAuthProvider`, which serves RFC 9728 metadata at `/.well-known/oauth-protected-resource/mcp` and answers a request without a valid token with 401 and a `WWW-Authenticate` header that points there.
 
-`StrictJWTVerifier` checks the signature, `iss`, `aud`, and the required scopes. It requires `exp` and refuses a future `nbf` or an `iat` more than five minutes ahead. The audience defaults to the base URL plus `/mcp`, the resource that the metadata names. With `--auth-allowed-subjects`, a token passes only when its `sub` or `email` claim equals an entry.
+`StrictJWTVerifier` checks the signature, `iss`, `aud`, and the required scopes. It requires `exp` and refuses a future `nbf` or an `iat` more than five minutes ahead. The audience defaults to the base URL plus `/mcp`, the resource that the metadata names. With `--auth-allowed-subjects`, a token passes only when its `sub` claim equals an entry, or when its `email` claim equals an entry and `email_verified` is `true`.
 
 A client token decides only whether the server answers. Calls to Google use the server's own Application Default Credentials, never the client token. Over stdio, the server runs as the operator who started it, and [`gcp_mcp/settings.py`](../gcp_mcp/settings.py) refuses `--require-auth`.
 
@@ -81,7 +81,6 @@ Before the policy and the executor merged, an independent reviewer mutated each 
 - `CUSTOM_METHOD` refuses a reserved path segment that ends in `:` and letters only. So a legacy domain-scoped project id such as `example.com:project`, or a hex digest that is all letters, cannot pass through a `{+x}` parameter.
 - Redaction matches key names. A number or boolean under a credential-shaped key stays. A credential stored as a data value, such as a compute metadata `items[].value` or a label value, goes through.
 - `bound` caps the response that the model gets, not the bytes that the server reads from Google.
-- The allowlist matches the `email` claim without checking `email_verified`. With an issuer other than Google, list `sub` values.
 - A token without a required scope gets 401, not 403, in fastmcp 4.1.6.
 - GET on `/mcp` returns 405, because the transport is stateless.
 - The catalog is pinned to the installed `google-api-python-client`. New services arrive through a dependency bump that regenerates the goldens.
