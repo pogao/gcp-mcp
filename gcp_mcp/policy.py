@@ -22,8 +22,9 @@ the body.
 The REST executor strips every response field whose name `REDACTED_FIELDS.search` matches,
 because general reads such as `container.projects.locations.clusters.get` return
 credentials beside the state they describe. `Admitted(accepts_body=True)` does not vouch for
-body contents, and the executor refuses a body that holds a `newTransaction`, `transaction`,
-or `transactionOptions` key at any depth.
+body contents. The executor refuses a body that holds a `newTransaction`, `transaction`, or
+`transactionOptions` key at any depth, in any spelling Google's JSON parsers accept, such as
+`new_transaction`.
 
 tests/test_policy.py runs `admit` offline over every method of every discovery document
 bundled with google-api-python-client, checks invariants with oracles independent of
