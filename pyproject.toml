@@ -5,7 +5,7 @@ description = "Read-only MCP server for Google Cloud"
 readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
-    "pydantic>=2.14.1",
+    "pydantic>=2.14.3",
     "fastmcp>=4.1.6",
     "starlette>=1.9.0",
     "structlog>=26.1.0",
