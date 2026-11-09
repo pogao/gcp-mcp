@@ -17,7 +17,7 @@ HTTP_AUTH_ARGV = [
 def restored_loggers():
     saved = [
         (logger, logger.level, list(logger.handlers), logger.propagate)
-        for logger in (logging.getLogger(), logging.getLogger("fastmcp"))
+        for logger in map(logging.getLogger, (None, "fastmcp", "httpx2"))
     ]
     yield
     for logger, level, handlers, propagate in saved:
@@ -96,3 +96,17 @@ def test_fastmcp_log_records_reach_stderr_as_json_when_serving(
     assert main([]) == 0
     lines = [json.loads(line) for line in capsys.readouterr().err.splitlines()]
     assert {"event": "Bearer token rejected", "level": "warning"}.items() <= lines[-1].items()
+
+
+def test_http_request_lines_stay_out_of_the_info_log(monkeypatch, restored_loggers, capsys):
+    def fake_serve(server, config):
+        client_log = logging.getLogger("httpx2")
+        client_log.info("HTTP Request: GET https://compute.googleapis.com/v1/projects/example-project")
+        client_log.warning("connection pool is full")
+
+    monkeypatch.setattr("gcp_mcp.__main__.serve", fake_serve)
+
+    assert main([]) == 0
+    err = capsys.readouterr().err
+    assert "example-project" not in err
+    assert "connection pool is full" in err

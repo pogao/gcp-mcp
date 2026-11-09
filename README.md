@@ -1,60 +1,24 @@
-# GCP MCP Server
+# gcp-mcp
 
-![Status: Work in Progress](https://img.shields.io/badge/status-work%20in%20progress-yellow.svg)
+gcp-mcp is a read-only [Model Context Protocol](https://modelcontextprotocol.io) server for Google Cloud. It speaks MCP protocol version `2026-07-28` over stdio and stateless Streamable HTTP, and it lets a model read any of the 194 Google Cloud services in the discovery documents that ship with `google-api-python-client`. It cannot create, change, or delete anything.
 
-This project is a Python-based server built with `fastmcp` that exposes a set of tools to a Large Language Model (LLM). The primary goal is to enable an LLM to safely query and analyze a Google Cloud Platform (GCP) environment, turning natural language questions into actionable cloud insights.
+## What you get
 
-This project is under active development and serves as a living demonstration of cloud integration, API design, and professional coding practices for my portfolio.
+The server has seven tools. The first four reach every service. A model uses them in order to find a service, find a read method, learn its arguments, and call it. The last three answer a security question with a fixed rule.
 
-## Tools
+| Tool | Question it answers | Example arguments |
+| --- | --- | --- |
+| `gcp_services(query?)` | Which services exist, their default version, and how many read methods each has. | `{"query": "kubernetes"}` |
+| `gcp_methods(service, query?, version?)` | Which read methods a service has, grouped by resource. | `{"service": "compute", "query": "instances"}` |
+| `gcp_describe_method(service, method, version?)` | Which parameters and request body a method takes, what it returns, and how it pages. | `{"service": "compute", "method": "instances.get"}` |
+| `gcp_call(service, method, args?, body?, version?)` | What the method returns, as JSON. | `{"service": "compute", "method": "instances.aggregatedList", "args": {"project": "example-project"}}` |
+| `unsafe_ssh_exposure(project)` | Which enabled ingress firewall rules allow TCP port 22 from `0.0.0.0/0` or `::/0`. | `{"project": "example-project"}` |
+| `find_project_owners(project)` | Which members hold `roles/owner` on the project. | `{"project": "example-project"}` |
+| `is_bucket_public(bucket)` | Whether the bucket's IAM policy grants a role to `allUsers` or `allAuthenticatedUsers`. | `{"bucket": "example-bucket"}` |
 
-Four tools cover every Google Cloud service in the discovery documents that ship with `google-api-python-client`. That is 194 services and 4,951 read methods, listed in `tests/golden/catalog.json` and `tests/golden/read_methods.txt`. A model uses the tools in this order:
+`tests/golden/catalog.json` lists the services, and `tests/golden/read_methods.txt` lists the 4951 read methods in their default versions.
 
-1. `gcp_services` finds the service.
-2. `gcp_methods` finds the read method.
-3. `gcp_describe_method` shows the arguments of the method.
-4. `gcp_call` runs the method.
-
-| Tool | Question it answers |
-| --- | --- |
-| `gcp_services(query?)` | Which services exist, what their default version is, and how many read methods each has. |
-| `gcp_methods(service, query?, version?)` | Which read methods a service has, grouped by resource. |
-| `gcp_describe_method(service, method, version?)` | Which parameters and request body a method takes, what it returns, and how it pages. |
-| `gcp_call(service, method, args?, body?, version?)` | What the method returns, as JSON. |
-
-Find the service:
-
-```jsonc
-gcp_services({"query": "kubernetes"})
-// {"services": [{"name": "container", "title": "Kubernetes Engine API",
-//   "default_version": "v1", "versions": ["v1", "v1beta1"], "read_methods": 22,
-//   "docs_url": "https://cloud.google.com/kubernetes-engine/docs/"}], "count": 1}
-```
-
-Find the method. Join a resource and a method name with a dot to get `instances.aggregatedList`. Methods on the service itself sit under the empty resource `""`.
-
-```jsonc
-gcp_methods({"service": "compute", "query": "instances"})
-// {"service": "compute", "version": "v1",
-//  "resources": {"instances": ["aggregatedList", "get", "getEffectiveFirewalls", ...,
-//                              "list", "listReferrers", "testIamPermissions"], ...},
-//  "read_methods": 459, "excluded_methods": 560}
-```
-
-Learn the arguments:
-
-```jsonc
-gcp_describe_method({"service": "compute", "method": "instances.get"})
-// {"service": "compute", "version": "v1", "method": "instances.get",
-//  "description": "Returns the specified Instance resource.",
-//  "http_method": "GET", "path": "projects/{project}/zones/{zone}/instances/{instance}",
-//  "params": [{"name": "instance", "location": "path", "type": "string",
-//              "required": true, "repeated": false, "enum": null, "description": "..."}, ...],
-//  "body": null, "response_schema": "Instance", "response_properties": {...},
-//  "pagination": null, "deprecated": false, "docs_url": "https://cloud.google.com/compute/"}
-```
-
-Call it. `args` holds the path and query parameters under the API's own parameter names. `body` holds the request body of a POST read, such as `logging` `entries.list`.
+`gcp_call` takes path and query parameters in `args`, under the API's own parameter names, and the request body of a POST read in `body`. A call returns the response with paging and size details:
 
 ```jsonc
 gcp_call({"service": "compute", "method": "instances.aggregatedList",
@@ -66,69 +30,22 @@ gcp_call({"service": "compute", "method": "instances.aggregatedList",
 //  "hint": "More results exist, so call again with pageToken set to next_page_token in args."}
 ```
 
-The server sends that call as one `GET` to `compute.googleapis.com` with `maxResults=100`, the default page size, because the call did not set one.
-
-### Keep responses small and complete
-
-- A response is cut to `--max-response-bytes`, 100000 by default. When the server drops list items to fit, `truncated` is `true` and `omitted_items` counts them. A later page does not return the dropped items, so repeat the call with `fields` or a smaller page size.
+- One call returns one page. To get the next page, pass `next_page_token` as `pageToken` in `args`, or in `body` for a POST read.
+- The server cuts a response to `--max-response-bytes`, 100000 by default. When it drops list items, `truncated` is `true` and `omitted_items` counts them. No later page returns them, so repeat the call with `fields` or a smaller page size.
 - `fields` takes the Google Cloud partial response syntax, such as `items(name,status),nextPageToken`.
-- One call returns one page. When `next_page_token` is set, pass it as `pageToken` in `args`, or in `body` for a POST read, to get the next page.
-- The server replaces the value of every field whose name looks like a credential, such as `password` or `privateKey`, with `"[redacted]"`, and counts the replacements in `redacted_fields`.
+- The value of every field whose name looks like a credential, such as `password` or `privateKey`, arrives as `"[redacted]"`, and `redacted_fields` counts them.
+- `gcp_call` refuses a mutating method, such as `instances.delete`, with the reason and sends no request.
 
-### What the server refuses
+## Run the server
 
-The server cannot create, change, or delete anything. `gcp_methods` lists only read methods. `gcp_call` refuses a mutating method, such as `instances.delete`, sends no request, and names the reason. An error tells the model what to change. When the server's own credentials are missing or expired, the error says that the operator must run `gcloud auth application-default login`.
+You need Python 3.13, [`uv`](https://docs.astral.sh/uv/), and the [Google Cloud CLI](https://cloud.google.com/sdk/docs/install). The server calls Google Cloud with Application Default Credentials, so log in first:
 
-### Security checks
-
-Three more tools answer a security question directly. Each applies a fixed rule to one or more reads through the same guarded executor as `gcp_call`, so the answer does not depend on a model applying the rule by hand.
-
-| Tool | Question it answers |
-| --- | --- |
-| `unsafe_ssh_exposure(project)` | Which enabled ingress firewall rules allow TCP port 22 from `0.0.0.0/0` or `::/0`. The tool walks every page of `compute` `firewalls.list` and returns each rule's name, network, source ranges, and ports. |
-| `find_project_owners(project)` | Which members hold `roles/owner` on the project, from `cloudresourcemanager` `projects.getIamPolicy`. |
-| `is_bucket_public(bucket)` | Whether any binding of the bucket's IAM policy names `allUsers` or `allAuthenticatedUsers`, from `storage` `buckets.getIamPolicy`. |
-
-## Technology Stack
-
-- **Language**: Python 3.13
-- **Framework**: `fastmcp` on MCP protocol 2026-07-28
-- **Google Cloud**: REST requests built from the discovery documents that ship with `google-api-python-client`, with `google-auth` for Application Default Credentials
-- **Logging**: Structured JSON logging with `structlog`
-
-## Getting Started
-
-### Prerequisites
-
-- Python 3.13
-- `uv` (or `pip`) for package management.
-- [Google Cloud SDK](https://cloud.google.com/sdk/docs/install) installed and configured on your local machine.
-
-### Installation & Running
-
-1.  **Clone the repository:**
-
-    ```bash
-    git clone <repository-url>
-    cd gcp-mcp
-    ```
-
-2.  **Set up the virtual environment and install dependencies:**
-
-    ```bash
-    uv sync
-    ```
-
-3.  **Authenticate with GCP:**
-    This is crucial. The application uses Application Default Credentials (ADC) to authenticate with Google Cloud.
-
-    ```bash
-    gcloud auth application-default login
-    ```
-
-### Run the server
-
-The `gcp-mcp` command builds the server from its settings and serves it. It is the only way to start the server. The former `fastmcp run main.py:mcp` command is gone with the legacy tools. Every setting is a flag and an environment variable with the prefix `GCP_MCP_`. A flag wins over an environment variable.
+```bash
+git clone https://github.com/pogao/gcp-mcp.git
+cd gcp-mcp
+uv sync
+gcloud auth application-default login
+```
 
 To serve over stdio, the default, run:
 
@@ -142,17 +59,40 @@ To serve over Streamable HTTP at `http://127.0.0.1:8888/mcp`, run:
 uv run gcp-mcp --transport http --port 8888
 ```
 
-The same run with environment variables:
+Every setting is an environment variable with the prefix `GCP_MCP_`. Every setting except the PEM public key is also a flag, and a flag wins over the environment. To do the same HTTP run with environment variables, run:
 
 ```bash
 GCP_MCP_TRANSPORT=http GCP_MCP_PORT=8888 uv run gcp-mcp
 ```
 
-`GET /healthz` returns `OK`. Logs are JSON lines on stderr. Run `uv run gcp-mcp --help` to list every flag.
+| Flag | Environment variable | Default | Meaning |
+| --- | --- | --- | --- |
+| `--transport` | `GCP_MCP_TRANSPORT` | `stdio` | `stdio` or `http`. |
+| `--host` | `GCP_MCP_HOST` | `127.0.0.1` | The address the HTTP transport listens on. |
+| `--port` | `GCP_MCP_PORT` | `8888` | The port the HTTP transport listens on. |
+| `--max-response-bytes` | `GCP_MCP_MAX_RESPONSE_BYTES` | `100000` | The size limit for a Google Cloud response, in bytes of compact JSON. |
+| `--default-page-size` | `GCP_MCP_DEFAULT_PAGE_SIZE` | `100` | The page size the server sends when a call sets none, up to the method's maximum. |
+| `--request-timeout-s` | `GCP_MCP_REQUEST_TIMEOUT_S` | `60` | Seconds to wait for Google Cloud. |
+| `--log-level` | `GCP_MCP_LOG_LEVEL` | `INFO` | `DEBUG`, `INFO`, `WARNING`, or `ERROR`. |
 
-Without `--require-auth`, the HTTP transport accepts every request. Keep `--host` on a loopback address in that case.
+`GET /healthz` returns `OK`. Logs are JSON lines on stderr. The HTTP client logs only warnings and errors, because its request lines carry project ids. Run `uv run gcp-mcp --help` to list every flag.
 
-#### Require authentication
+Without `--require-auth`, the HTTP transport accepts every request, and the server warns at startup when `--host` is not a loopback address. Keep `--host` on a loopback address in that case.
+
+To connect Claude Desktop, add the server to the `mcpServers` object of its configuration file. For Claude Code, add it to `.mcp.json`. Replace `/path/to/gcp-mcp` with the directory that holds this repository.
+
+```json
+{
+  "mcpServers": {
+    "gcp": {
+      "command": "uv",
+      "args": ["run", "--directory", "/path/to/gcp-mcp", "gcp-mcp"]
+    }
+  }
+}
+```
+
+## Require authentication
 
 To make the HTTP transport require a bearer token, add `--require-auth` and name the token issuer and its keys:
 
@@ -218,17 +158,37 @@ The server uses a client token only to decide whether to serve the request. It c
 
 The MCP specification says that a stdio server should not use protocol authentication. Over stdio, the server runs with the credentials of the operator who starts it, so `--require-auth` with stdio exits with code 2.
 
-### Connect Claude Desktop or Claude Code
+## How it stays read-only
 
-Add the server to the `mcpServers` object of the Claude Desktop configuration file, or to `.mcp.json` for Claude Code. Replace `/path/to/gcp-mcp` with the directory that holds this repository.
+The server calls a Google API method only when `admit` in `gcp_mcp/policy.py` judges it a read, and it refuses every other method with a reason before it sends anything. A GET needs a read verb such as `get` or `list`, because Google ships GET methods that mutate, and a POST needs a read name such as `getIamPolicy` or `runQuery`. One function in `gcp_mcp/rest.py` builds every request and refuses path values, parameters, and body keys that could reach another endpoint or open a transaction. The server replaces credential-shaped response fields with `"[redacted]"`. Tests run the policy over all 604 bundled discovery documents and pin the result in golden files, so every change to the read set is a reviewed diff.
 
-```json
-{
-  "mcpServers": {
-    "gcp": {
-      "command": "uv",
-      "args": ["run", "--directory", "/path/to/gcp-mcp", "gcp-mcp"]
-    }
-  }
-}
+[How gcp-mcp stays read-only](docs/design.md) explains each rule and how the tests prove it. To report a way around it, follow [the security policy](SECURITY.md).
+
+## Known limits
+
+The guarantee has limits that follow from its design, such as resource names with a letters-only `:` suffix, excluded inference endpoints, and redaction by field name. [Known limits](docs/design.md#known-limits) lists each one with its reason.
+
+## Development
+
+To install the development tools and run the checks that CI runs:
+
+```bash
+uv sync --group dev
+uv run ruff check .
+uv run pytest -q
 ```
+
+The tests never open a network connection. Three golden files under `tests/golden/` pin the policy verdicts, the service catalog, and the read methods. When a test reports a golden diff, review it, then regenerate the files:
+
+```bash
+uv run python -m scripts.golden --check
+uv run python -m scripts.golden --write
+```
+
+The catalog comes from the discovery documents in the installed `google-api-python-client`, so new Google Cloud services arrive with a new version of that package. Dependabot checks for that upgrade every week and opens it as a pull request. To upgrade by hand:
+
+1. Run `uv lock --upgrade-package google-api-python-client`.
+2. Run `uv sync --group dev`.
+3. Run `uv run python -m scripts.golden --check` and review the diff, especially new admitted POSTs and new services.
+4. Run `uv run python -m scripts.golden --write` and `uv run pytest -q`.
+5. Commit `uv.lock` and `tests/golden/` together.

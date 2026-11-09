@@ -57,6 +57,7 @@ def configure_logging(level: str) -> None:
     fastmcp_logger.handlers.clear()
     fastmcp_logger.setLevel(logging.NOTSET)
     fastmcp_logger.propagate = True
+    logging.getLogger("httpx2").setLevel(logging.WARNING)
 
 
 if __name__ == "__main__":
