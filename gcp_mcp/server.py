@@ -1,8 +1,6 @@
-import asyncio
 import ipaddress
 import time
-from collections.abc import Mapping, Sequence
-from concurrent.futures import ThreadPoolExecutor
+from collections.abc import Mapping
 from importlib.metadata import version
 from typing import Any
 
@@ -12,13 +10,12 @@ from fastmcp import FastMCP
 from fastmcp.server.auth import AccessToken, RemoteAuthProvider
 from fastmcp.server.auth.providers.jwt import JWTVerifier
 from fastmcp.server.http import StarletteWithLifespan
-from fastmcp.tools import Tool
 from starlette.requests import Request
 from starlette.responses import PlainTextResponse
 
+from gcp_mcp import insights, tools
 from gcp_mcp.rest import Gcp, Limits, make_gcp
 from gcp_mcp.settings import MCP_PATH, HttpConfig, ServerConfig, Settings, StdioConfig
-from gcp_mcp.tools import make_tools, read_only_tool
 
 STATELESS_HTTP = True
 IAT_LEEWAY_S = 300
@@ -38,6 +35,10 @@ to a size limit, so add "fields" to `args` to get only the fields you need. One 
 one page. When next_page_token is set, pass it as pageToken to get the next page. Fields that
 look like credentials arrive as "[redacted]". An error about the server's own credentials or
 permissions is for the operator to fix, not you.
+
+Three ready-made security checks need no method lookup. unsafe_ssh_exposure finds firewall rules
+that open SSH to the internet, find_project_owners lists the members of the basic Owner role, and
+is_bucket_public tells whether a bucket grants access to allUsers or allAuthenticatedUsers.
 """
 
 log = structlog.get_logger(__name__)
@@ -59,17 +60,10 @@ def build_server(settings: Settings, gcp: Gcp | None = None) -> FastMCP:
         version=version("gcp-mcp"),
         auth=auth_provider(settings.config()),
     )
-    for tool in (*make_tools(gcp), *legacy_tools()):
-        read_only_tool(server, tool)
+    for tool in (*tools.make_tools(gcp), *insights.make_tools(gcp)):
+        tools.read_only_tool(server, tool)
     server.custom_route("/healthz", methods=["GET"])(healthz)
     return server
-
-
-def legacy_tools() -> Sequence[Tool]:
-    from app import mcp
-
-    with ThreadPoolExecutor(max_workers=1) as pool:
-        return pool.submit(asyncio.run, mcp.list_tools()).result()
 
 
 def auth_provider(config: ServerConfig) -> RemoteAuthProvider | None:
