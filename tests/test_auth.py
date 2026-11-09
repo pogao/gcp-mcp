@@ -168,8 +168,11 @@ async def test_a_token_signed_by_another_key_is_refused(auth_settings):
 @pytest.mark.parametrize(
     "claims",
     [
-        pytest.param({"sub": "1234567890"}, id="allowed sub"),
-        pytest.param({"sub": "4444", "email": ALLOWED_SUBJECTS[0]}, id="allowed email"),
+        pytest.param({"sub": "1234567890"}, id="allowed sub and no email claims"),
+        pytest.param(
+            {"sub": "4444", "email": ALLOWED_SUBJECTS[0], "email_verified": True},
+            id="allowed verified email",
+        ),
     ],
 )
 async def test_a_token_from_an_allowed_subject_passes(allowlist_settings, issuer_key, claims):
@@ -177,6 +180,26 @@ async def test_a_token_from_an_allowed_subject_passes(allowlist_settings, issuer
         response = await post_mcp(transport, token(issuer_key, **claims))
 
     assert response.status_code != 401
+
+
+@pytest.mark.anyio
+@pytest.mark.parametrize(
+    "claims",
+    [
+        pytest.param({}, id="no email_verified claim"),
+        pytest.param({"email_verified": False}, id="email_verified false"),
+        pytest.param({"email_verified": "true"}, id="email_verified is a string"),
+    ],
+)
+async def test_an_allowed_email_is_refused_unless_it_is_verified(
+    allowlist_settings, issuer_key, claims
+):
+    bearer = token(issuer_key, sub="4444", email=ALLOWED_SUBJECTS[0], **claims)
+
+    async with serving(allowlist_settings) as transport:
+        response = await post_mcp(transport, bearer)
+
+    assert response.status_code == 401
 
 
 @pytest.mark.anyio
@@ -202,6 +225,9 @@ async def test_a_token_from_an_unlisted_subject_is_refused_only_with_an_allowlis
         pytest.param({"nbf": int(time.time()) + 3600}, "nbf", id="not yet valid"),
         pytest.param({"iat": int(time.time()) + 600}, "iat", id="issued in the future"),
         pytest.param({"sub": "4444"}, "subject", id="subject not allowed"),
+        pytest.param(
+            {"sub": "4444", "email": ALLOWED_SUBJECTS[0]}, "verified", id="email not verified"
+        ),
     ],
 )
 async def test_a_refusal_logs_its_reason_and_the_subject_but_not_the_token(

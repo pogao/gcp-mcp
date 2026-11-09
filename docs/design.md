@@ -55,7 +55,7 @@ In [`gcp_mcp/rest.py`](../gcp_mcp/rest.py), `prepare` is the only code that cons
 
 With `--require-auth` over HTTP, the server is an OAuth resource server as the MCP authorization specification describes. [`gcp_mcp/server.py`](../gcp_mcp/server.py) builds a fastmcp `RemoteAuthProvider`, which serves RFC 9728 metadata at `/.well-known/oauth-protected-resource/mcp` and answers a request without a valid token with 401 and a `WWW-Authenticate` header that points there.
 
-`StrictJWTVerifier` checks the signature, `iss`, `aud`, and the required scopes. It requires `exp` and refuses a future `nbf` or an `iat` more than five minutes ahead. The audience defaults to the base URL plus `/mcp`, the resource that the metadata names. With `--auth-allowed-subjects`, a token passes only when its `sub` or `email` claim equals an entry.
+`StrictJWTVerifier` checks the signature, `iss`, `aud`, and the required scopes. It requires `exp` and refuses a future `nbf` or an `iat` more than five minutes ahead. The audience defaults to the base URL plus `/mcp`, the resource that the metadata names. With `--auth-allowed-subjects`, a token passes only when its `sub` claim equals an entry, or when its `email` claim equals an entry and `email_verified` is `true`.
 
 A client token decides only whether the server answers. Calls to Google use the server's own Application Default Credentials, never the client token. Over stdio, the server runs as the operator who started it, and [`gcp_mcp/settings.py`](../gcp_mcp/settings.py) refuses `--require-auth`.
 
@@ -67,7 +67,7 @@ Three goldens pin the result. `policy.json` lists admitted POSTs and refused GET
 
 [`tests/test_layering.py`](../tests/test_layering.py) keeps `policy` and `errors` on the standard library and the server modules away from the HTTP client. It walks the syntax tree to prove that `parse_service` alone constructs a `ReadMethod` and `prepare` alone constructs a `PreparedRequest`. [`tests/test_rest.py`](../tests/test_rest.py) replays both path attacks, the snake_case transaction key, and a nested password beside the cursors. [`tests/conftest.py`](../tests/conftest.py) makes every socket connect fail.
 
-Before the policy and the executor merged, an independent reviewer mutated each one and saw the suite fail, and reproduced the goldens with separate code.
+Independent reviewers mutated the policy and the executor during review. A review found a snake_case bypass in the body validator, the validator was rewritten, and a second review re-attacked the merged validator.
 
 ## What the server does not do
 
@@ -81,8 +81,9 @@ Before the policy and the executor merged, an independent reviewer mutated each 
 - `CUSTOM_METHOD` refuses a reserved path segment that ends in `:` and letters only. So a legacy domain-scoped project id such as `example.com:project`, or a hex digest that is all letters, cannot pass through a `{+x}` parameter.
 - Redaction matches key names. A number or boolean under a credential-shaped key stays. A credential stored as a data value, such as a compute metadata `items[].value` or a label value, goes through.
 - `bound` caps the response that the model gets, not the bytes that the server reads from Google.
-- The allowlist matches the `email` claim without checking `email_verified`. With an issuer other than Google, list `sub` values.
 - A token without a required scope gets 401, not 403, in fastmcp 4.1.6.
 - GET on `/mcp` returns 405, because the transport is stateless.
-- The catalog is pinned to the installed `google-api-python-client`. New services arrive through a dependency bump that regenerates the goldens.
+- The catalog is pinned to the installed `google-api-python-client`. New services arrive through a dependency bump, and the bump turns the golden tests red on purpose. A maintainer regenerates the goldens with `uv run python -m scripts.golden --write` and reviews the diff. `policy.json` shows the newly admitted POSTs and the newly refused GETs, and `read_methods.txt` shows the changed methods. The maintainer commits them, and that diff is the security review of each catalog update.
 - A request body may use camelCase or snake_case field names. `prepare` validates both against the schema.
+- `prepare` accepts a declared body field in any spelling that lowercases and strips underscores to the field's name. A spelling such as `READOPTIONS` or `partition__id` passes to Google, which answers 400 for an unknown field. The transaction key check sees the same normalized spelling, so `TRANSACTION` and `new_transaction` are refused too.
+- A body value of the wrong shape passes through, such as a list where the schema expects an object, or an object where it expects a scalar or a list. `prepare` does not check the keys inside such a value against the schema. It cannot open a transaction, because the transaction key check runs on every key at every depth regardless of the schema.
