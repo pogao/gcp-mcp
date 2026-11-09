@@ -47,6 +47,8 @@ uv sync
 gcloud auth application-default login
 ```
 
+The server calls Google Cloud with the Application Default Credentials of whoever starts it. Start it under an identity that can only read, such as a dedicated service account with the Viewer role or narrower roles. To use that account from your own login, run `gcloud auth application-default login --impersonate-service-account viewer@example-project.iam.gserviceaccount.com`, or run the server as the service account. The read-only policy is the first line of defense and IAM is the second. Redaction cannot catch a secret stored as a data value, so a Viewer identity also limits what a prompt-injected model can read.
+
 To serve over stdio, the default, run:
 
 ```bash
@@ -167,6 +169,23 @@ The server calls a Google API method only when `admit` in `gcp_mcp/policy.py` ju
 ## Known limits
 
 The guarantee has limits that follow from its design, such as resource names with a letters-only `:` suffix, excluded inference endpoints, and redaction by field name. [Known limits](docs/design.md#known-limits) lists each one with its reason.
+
+## Upgrade from 0.1
+
+0.2 removes twelve of the fifteen tools of 0.1, among them `list_gcs_buckets`, `describe_gcp_instance`, `list_firewall_rules`, and `list_project_iam`. `gcp_call` serves the API method behind each one and returns the full response. The four most used map as follows:
+
+| 0.1 tool | `gcp_call` arguments |
+| --- | --- |
+| `list_gcs_buckets(project_id)` | `{"service": "storage", "method": "buckets.list", "args": {"project": "example-project"}}` |
+| `describe_gcp_instance(instance_name, project_id, zone)` | `{"service": "compute", "method": "instances.get", "args": {"project": "example-project", "zone": "us-central1-a", "instance": "example-instance"}}` |
+| `list_firewall_rules(project_id)` | `{"service": "compute", "method": "firewalls.list", "args": {"project": "example-project"}}` |
+| `list_project_iam(project_id)` | `{"service": "cloudresourcemanager", "method": "projects.getIamPolicy", "args": {"resource": "projects/example-project"}}` |
+
+To find the method behind another removed tool, call `gcp_methods` with the service name.
+
+`fastmcp run main.py:mcp` is gone. Run `uv run gcp-mcp` instead, and point the `command` and `args` of your MCP client at it as shown in [Run the server](#run-the-server).
+
+`unsafe_ssh_exposure`, `find_project_owners`, and `is_bucket_public` keep their names. They take `project` or `bucket` instead of `project_id` and `bucket_name`, and each returns an object instead of a bare list or boolean. `unsafe_ssh_exposure` and `find_project_owners` carry a `count`, and `is_bucket_public` carries `public` and the public `bindings`.
 
 ## Development
 
