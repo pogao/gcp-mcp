@@ -79,22 +79,28 @@ The server sends that call as one `GET` to `compute.googleapis.com` with `maxRes
 
 The server cannot create, change, or delete anything. `gcp_methods` lists only read methods. `gcp_call` refuses a mutating method, such as `instances.delete`, sends no request, and names the reason. An error tells the model what to change. When the server's own credentials are missing or expired, the error says that the operator must run `gcloud auth application-default login`.
 
-The server still serves the 15 legacy tools, such as `list_gcs_buckets` and `unsafe_ssh_exposure`, after the four generic tools. The next pull request replaces them.
+### Security checks
+
+Three more tools answer a security question directly. Each applies a fixed rule to one or more reads through the same guarded executor as `gcp_call`, so the answer does not depend on a model applying the rule by hand.
+
+| Tool | Question it answers |
+| --- | --- |
+| `unsafe_ssh_exposure(project)` | Which enabled ingress firewall rules allow TCP port 22 from `0.0.0.0/0` or `::/0`. The tool walks every page of `compute` `firewalls.list` and returns each rule's name, network, source ranges, and ports. |
+| `find_project_owners(project)` | Which members hold `roles/owner` on the project, from `cloudresourcemanager` `projects.getIamPolicy`. |
+| `is_bucket_public(bucket)` | Whether any binding of the bucket's IAM policy names `allUsers` or `allAuthenticatedUsers`, from `storage` `buckets.getIamPolicy`. |
 
 ## Technology Stack
 
-- **Backend**: Python 3
-- **Framework**: FastAPI & `fastmcp`
-- **Cloud SDK**: `google-cloud-compute`, `google-cloud-storage` and `google-cloud-resource-manager` for interacting with the GCP API.
-- **Logging**: Structured JSON logging implemented with `structlog`.
-- **Code Quality**:
-  - Centralized exception handling using Python decorators.
+- **Language**: Python 3.13
+- **Framework**: `fastmcp` on MCP protocol 2026-07-28
+- **Google Cloud**: REST requests built from the discovery documents that ship with `google-api-python-client`, with `google-auth` for Application Default Credentials
+- **Logging**: Structured JSON logging with `structlog`
 
 ## Getting Started
 
 ### Prerequisites
 
-- Python 3.10+
+- Python 3.13
 - `uv` (or `pip`) for package management.
 - [Google Cloud SDK](https://cloud.google.com/sdk/docs/install) installed and configured on your local machine.
 
@@ -122,7 +128,7 @@ The server still serves the 15 legacy tools, such as `list_gcs_buckets` and `uns
 
 ### Run the server
 
-The `gcp-mcp` command builds the server from its settings and serves it. Every setting is a flag and an environment variable with the prefix `GCP_MCP_`. A flag wins over an environment variable.
+The `gcp-mcp` command builds the server from its settings and serves it. It is the only way to start the server. The former `fastmcp run main.py:mcp` command is gone with the legacy tools. Every setting is a flag and an environment variable with the prefix `GCP_MCP_`. A flag wins over an environment variable.
 
 To serve over stdio, the default, run:
 
@@ -226,5 +232,3 @@ Add the server to the `mcpServers` object of the Claude Desktop configuration fi
   }
 }
 ```
-
-The legacy command `uv run fastmcp run main.py:mcp` still works until the next pull requests replace the tools.
