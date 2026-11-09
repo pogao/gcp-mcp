@@ -67,7 +67,7 @@ Three goldens pin the result. `policy.json` lists admitted POSTs and refused GET
 
 [`tests/test_layering.py`](../tests/test_layering.py) keeps `policy` and `errors` on the standard library and the server modules away from the HTTP client. It walks the syntax tree to prove that `parse_service` alone constructs a `ReadMethod` and `prepare` alone constructs a `PreparedRequest`. [`tests/test_rest.py`](../tests/test_rest.py) replays both path attacks, the snake_case transaction key, and a nested password beside the cursors. [`tests/conftest.py`](../tests/conftest.py) makes every socket connect fail.
 
-Before the policy and the executor merged, an independent reviewer mutated each one and saw the suite fail, and reproduced the goldens with separate code.
+Independent reviewers mutated the policy and the executor during review. A review found a snake_case bypass in the body validator, the validator was rewritten, and a second review re-attacked the merged validator.
 
 ## What the server does not do
 
