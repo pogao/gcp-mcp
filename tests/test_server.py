@@ -7,14 +7,20 @@ from fastmcp.client.transports import StreamableHttpTransport
 from gcp_mcp.server import build_server, http_app
 from gcp_mcp.settings import Settings
 
-GENERIC_TOOLS = ("gcp_services", "gcp_methods", "gcp_describe_method", "gcp_call")
-LEGACY_TOOLS = {
+TOOLS = (
+    "gcp_services",
+    "gcp_methods",
+    "gcp_describe_method",
+    "gcp_call",
+    "unsafe_ssh_exposure",
+    "find_project_owners",
+    "is_bucket_public",
+)
+DELETED_TOOLS = (
     "describe_firewall_rule",
     "describe_gcp_disk",
     "describe_gcp_instance",
     "describe_gcs_bucket",
-    "find_project_owners",
-    "is_bucket_public",
     "is_ubla_enabled_in_bucket",
     "list_all_instances_in_project",
     "list_firewall_rules",
@@ -23,8 +29,7 @@ LEGACY_TOOLS = {
     "list_gcp_instances_per_zone",
     "list_gcs_buckets",
     "list_project_iam",
-    "unsafe_ssh_exposure",
-}
+)
 
 
 @pytest.fixture
@@ -38,16 +43,23 @@ async def tool_names(server):
 
 
 @pytest.mark.anyio
-async def test_serves_the_generic_tools_then_the_legacy_tools_as_read_only():
+async def test_serves_the_seven_tools_in_order_as_read_only():
     async with Client(build_server(Settings())) as client:
         tools = await client.list_tools()
 
-    names = [tool.name for tool in tools]
-    assert tuple(names[:4]) == GENERIC_TOOLS
-    assert set(names[4:]) == LEGACY_TOOLS
+    assert tuple(tool.name for tool in tools) == TOOLS
     for tool in tools:
         assert tool.annotations.read_only_hint is True
         assert tool.annotations.destructive_hint is False
+        assert tool.annotations.idempotent_hint is True
+        assert tool.annotations.open_world_hint is True
+
+
+@pytest.mark.anyio
+async def test_no_legacy_tool_is_served():
+    names = await tool_names(build_server(Settings()))
+
+    assert set(names).isdisjoint(DELETED_TOOLS)
 
 
 @pytest.mark.anyio
@@ -84,7 +96,7 @@ async def test_streamable_http_lists_the_same_tools():
             names = {tool.name for tool in await client.list_tools()}
             protocol = client.protocol_version
 
-    assert names == {*GENERIC_TOOLS, *LEGACY_TOOLS}
+    assert names == set(TOOLS)
     assert protocol == "2026-07-28"
 
 

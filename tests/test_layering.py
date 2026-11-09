@@ -6,7 +6,7 @@ import pytest
 
 PACKAGE = Path(__file__).resolve().parents[1] / "gcp_mcp"
 CORE = ("policy", "errors", "discovery")
-SERVER = ("server", "tools", "settings", "__main__")
+SERVER = ("server", "tools", "insights", "settings", "__main__")
 
 
 def parse(module: str) -> ast.Module:

@@ -113,7 +113,7 @@ async def test_a_token_for_the_advertised_resource_lists_tools(auth_settings, is
             resource = (await http.get(METADATA_URL)).json()["resource"]
         names = await list_tools(transport, bearer=token(issuer_key, aud=resource))
 
-    assert "list_gcs_buckets" in names
+    assert "gcp_call" in names
 
 
 @pytest.mark.anyio
@@ -227,7 +227,7 @@ async def test_without_require_auth_the_same_app_lists_tools_with_no_token():
     async with serving(Settings(transport="http")) as transport:
         names = await list_tools(transport)
 
-    assert "list_gcs_buckets" in names
+    assert "gcp_call" in names
 
 
 def test_stdio_and_open_http_have_no_auth_provider():
