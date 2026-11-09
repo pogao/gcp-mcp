@@ -6,35 +6,80 @@ This project is a Python-based server built with `fastmcp` that exposes a set of
 
 This project is under active development and serves as a living demonstration of cloud integration, API design, and professional coding practices for my portfolio.
 
-## Key Features
+## Tools
 
-The server currently provides the following tools to an LLM:
+Four tools cover every Google Cloud service in the discovery documents that ship with `google-api-python-client`. That is 194 services and 4,951 read methods, listed in `tests/golden/catalog.json` and `tests/golden/read_methods.txt`. A model uses the tools in this order:
 
-### ☁️ Google Cloud Platform Tools
+1. `gcp_services` finds the service.
+2. `gcp_methods` finds the read method.
+3. `gcp_describe_method` shows the arguments of the method.
+4. `gcp_call` runs the method.
 
-#### Compute Engine
+| Tool | Question it answers |
+| --- | --- |
+| `gcp_services(query?)` | Which services exist, what their default version is, and how many read methods each has. |
+| `gcp_methods(service, query?, version?)` | Which read methods a service has, grouped by resource. |
+| `gcp_describe_method(service, method, version?)` | Which parameters and request body a method takes, what it returns, and how it pages. |
+| `gcp_call(service, method, args?, body?, version?)` | What the method returns, as JSON. |
 
-- **List Instances**: List all VM instances within a specific project and zone.
-- **Describe Instance**: Get detailed information about a specific VM instance.
+Find the service:
 
-#### VPC Networking & Firewalls
+```jsonc
+gcp_services({"query": "kubernetes"})
+// {"services": [{"name": "container", "title": "Kubernetes Engine API",
+//   "default_version": "v1", "versions": ["v1", "v1beta1"], "read_methods": 22,
+//   "docs_url": "https://cloud.google.com/kubernetes-engine/docs/"}], "count": 1}
+```
 
-- **List All Firewall Rules**: Retrieve every firewall rule within a given project.
-- **List Firewall Rules per VPC**: Filter firewall rules for a specific VPC network.
-- **Describe Firewall Rule**: Get detailed information about a single, named firewall rule.
-- **🛡️ Unsafe SSH Exposure Analysis**: A security-focused tool that actively scans for firewall rules that dangerously expose SSH (port 22) to the entire internet (`0.0.0.0/0`).
+Find the method. Join a resource and a method name with a dot to get `instances.aggregatedList`. Methods on the service itself sit under the empty resource `""`.
 
-#### Cloud IAM
+```jsonc
+gcp_methods({"service": "compute", "query": "instances"})
+// {"service": "compute", "version": "v1",
+//  "resources": {"instances": ["aggregatedList", "get", "getEffectiveFirewalls", ...,
+//                              "list", "listReferrers", "testIamPermissions"], ...},
+//  "read_methods": 459, "excluded_methods": 560}
+```
 
-- **List Project IAM Policy**: Retrieves the full Identity and Access Management (IAM) policy for a specified project.
-- **🛡️ Find Project Owners**: A security-focused tool that finds principals with the highly-privileged `roles/owner` basic role assigned to them.
+Learn the arguments:
 
-#### Cloud Storage
+```jsonc
+gcp_describe_method({"service": "compute", "method": "instances.get"})
+// {"service": "compute", "version": "v1", "method": "instances.get",
+//  "description": "Returns the specified Instance resource.",
+//  "http_method": "GET", "path": "projects/{project}/zones/{zone}/instances/{instance}",
+//  "params": [{"name": "instance", "location": "path", "type": "string",
+//              "required": true, "repeated": false, "enum": null, "description": "..."}, ...],
+//  "body": null, "response_schema": "Instance", "response_properties": {...},
+//  "pagination": null, "deprecated": false, "docs_url": "https://cloud.google.com/compute/"}
+```
 
-- **List GCS Buckets**: Retrieve a list of all Google Cloud Storage buckets in a project.
-- **Describe GCS Bucket**: Get detailed metadata for a specific storage bucket.
-- **Check UBLA**: Verify if a bucket has Uniform Bucket-Level Access (UBLA) enabled.
-- **🛡️ Public Bucket Analysis**: A security-focused tool that checks if a bucket is publicly accessible to the internet.
+Call it. `args` holds the path and query parameters under the API's own parameter names. `body` holds the request body of a POST read, such as `logging` `entries.list`.
+
+```jsonc
+gcp_call({"service": "compute", "method": "instances.aggregatedList",
+          "args": {"project": "example-project",
+                   "fields": "items.*.instances(name,networkInterfaces(accessConfigs(natIP))),nextPageToken"}})
+// {"service": "compute", "version": "v1", "method": "instances.aggregatedList",
+//  "response": {"items": {...}, "nextPageToken": "..."},
+//  "next_page_token": "...", "truncated": false, "omitted_items": 0, "redacted_fields": 0,
+//  "hint": "More results exist, so call again with pageToken set to next_page_token in args."}
+```
+
+The server sends that call as one `GET` to `compute.googleapis.com` with `maxResults=100`, the default page size, because the call did not set one.
+
+### Keep responses small and complete
+
+- A response is cut to `--max-response-bytes`, 100000 by default. When the server drops list items to fit, `truncated` is `true` and `omitted_items` counts them. A later page does not return the dropped items, so repeat the call with `fields` or a smaller page size.
+- `fields` takes the Google Cloud partial response syntax, such as `items(name,status),nextPageToken`.
+- One call returns one page. When `next_page_token` is set, pass it as `pageToken` in `args`, or in `body` for a POST read, to get the next page.
+- The server replaces the value of every field whose name looks like a credential, such as `password` or `privateKey`, with `"[redacted]"`, and counts the replacements in `redacted_fields`.
+
+### What the server refuses
+
+The server cannot create, change, or delete anything. `gcp_methods` lists only read methods. `gcp_call` refuses a mutating method, such as `instances.delete`, sends no request, and names the reason. An error tells the model what to change. When the server's own credentials are missing or expired, the error says that the operator must run `gcloud auth application-default login`.
+
+The server still serves the 15 legacy tools, such as `list_gcs_buckets` and `unsafe_ssh_exposure`, after the four generic tools. The next pull request replaces them.
 
 ## Technology Stack
 

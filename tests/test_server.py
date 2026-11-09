@@ -7,6 +7,7 @@ from fastmcp.client.transports import StreamableHttpTransport
 from gcp_mcp.server import build_server, http_app
 from gcp_mcp.settings import Settings
 
+GENERIC_TOOLS = ("gcp_services", "gcp_methods", "gcp_describe_method", "gcp_call")
 LEGACY_TOOLS = {
     "describe_firewall_rule",
     "describe_gcp_disk",
@@ -37,11 +38,13 @@ async def tool_names(server):
 
 
 @pytest.mark.anyio
-async def test_serves_the_legacy_tools_as_read_only():
+async def test_serves_the_generic_tools_then_the_legacy_tools_as_read_only():
     async with Client(build_server(Settings())) as client:
         tools = await client.list_tools()
 
-    assert {tool.name for tool in tools} == LEGACY_TOOLS
+    names = [tool.name for tool in tools]
+    assert tuple(names[:4]) == GENERIC_TOOLS
+    assert set(names[4:]) == LEGACY_TOOLS
     for tool in tools:
         assert tool.annotations.read_only_hint is True
         assert tool.annotations.destructive_hint is False
@@ -81,7 +84,7 @@ async def test_streamable_http_lists_the_same_tools():
             names = {tool.name for tool in await client.list_tools()}
             protocol = client.protocol_version
 
-    assert names == LEGACY_TOOLS
+    assert names == {*GENERIC_TOOLS, *LEGACY_TOOLS}
     assert protocol == "2026-07-28"
 
 
